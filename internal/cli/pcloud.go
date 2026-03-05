@@ -1,18 +1,12 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -45,6 +39,7 @@ func Execute(baseurl, clientid, clientsecret string) {
 	BaseURL = baseurl
 	ClientID = clientid
 	ClientSecret = clientsecret
+	pcloud.SetBaseURL(BaseURL)
 
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -84,68 +79,6 @@ func initConfig() {
 		}
 		AccessToken = viper.GetString("access_token")
 	}
-}
 
-// Pcloud struct containing requests
-type Pcloud struct {
-	Endpoint    string
-	Parameters  url.Values
-	AccessToken string
-	Body        io.Reader
-	Headers     map[string]string
-}
-
-// NewPcloud return new Pcloud struct, defined above
-func NewPcloud() *Pcloud {
-	return &Pcloud{Headers: make(map[string]string)}
-}
-
-// Query API endpoint with url parameters. If authorization is true, the authorization
-// header is set. Returns json []byte and optional error from server.
-func (p *Pcloud) Query() ([]byte, error) {
-	var URL *url.URL
-	URL, err := url.Parse(BaseURL)
-	if err != nil {
-		fmt.Println("Error: Could not parse base url")
-		os.Exit(1)
-	}
-
-	URL.Path += p.Endpoint
-	URL.RawQuery = p.Parameters.Encode()
-
-	if verbose {
-		fmt.Println("Query path: " + URL.String())
-	}
-
-	request, err := http.NewRequest("POST", URL.String(), p.Body)
-	for key, value := range p.Headers {
-		request.Header.Add(key, value)
-	}
-	if p.AccessToken != "" {
-		request.Header.Add("Authorization", "Bearer "+p.AccessToken)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(request)
-	if err != nil {
-		fmt.Println("Error: Could not query endpoint")
-		os.Exit(1)
-	}
-	defer resp.Body.Close()
-
-	responseBody, _ := ioutil.ReadAll(resp.Body)
-	if verbose {
-		fmt.Println("Response Status:", resp.Status)
-	}
-
-	var dat map[string]interface{}
-	if err := json.Unmarshal(responseBody, &dat); err != nil {
-		panic(err)
-	}
-
-	if dat["result"].(float64) != 0 {
-		return []byte{}, errors.New("Error " + strconv.FormatFloat(dat["result"].(float64), 'f', 0, 64) + ": " + dat["error"].(string))
-	}
-
-	return responseBody, nil
+	pcloud.SetVerbose(verbose)
 }

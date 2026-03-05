@@ -1,15 +1,13 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/helpers"
-	"github.com/storvik/pcloud-cli/models"
+	"github.com/storvik/pcloud-cli/internal/helpers"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -37,27 +35,9 @@ func getfile(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	parameters := url.Values{}
-	if args[0][0] != 47 {
-		parameters.Add("path", "/"+args[0])
-	} else {
-		parameters.Add("path", args[0])
-	}
-
-	pcloud := NewPcloud()
-	pcloud.Endpoint = "/getfilelink"
-	pcloud.Parameters = parameters
-	pcloud.AccessToken = AccessToken
-
-	resp, err := pcloud.Query()
+	api := pcloud.NewAPI()
+	response, err := api.GetFileLink(args[0], AccessToken)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	var response models.GetfileResponse
-	if err := json.Unmarshal(resp, &response); err != nil {
-		fmt.Println("Could not decode server response.")
 		fmt.Println(err)
 		os.Exit(1)
 	}

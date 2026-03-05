@@ -1,14 +1,12 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	m "github.com/storvik/pcloud-cli/models"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -52,37 +50,14 @@ func init() {
 }
 
 func listfolder(cmd *cobra.Command, args []string) {
-	parameters := url.Values{}
+	path := ""
 	if len(args) > 0 {
-		if args[0][0] != 47 {
-			parameters.Add("path", "/"+args[0])
-		} else {
-			parameters.Add("path", args[0])
-		}
-	} else {
-		parameters.Add("path", "/")
-	}
-	if nofiles {
-		parameters.Add("nofiles", "1")
-	}
-	if showdeleted {
-		parameters.Add("showdeleted", "1")
+		path = args[0]
 	}
 
-	pcloud := new(Pcloud)
-	pcloud.Endpoint = "/listfolder"
-	pcloud.Parameters = parameters
-	pcloud.AccessToken = AccessToken
-
-	resp, err := pcloud.Query()
+	api := pcloud.NewAPI()
+	response, err := api.ListFolder(path, nofiles, showdeleted, AccessToken)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	var response m.ListfolderResponse
-	if err := json.Unmarshal(resp, &response); err != nil {
-		fmt.Println("Could not decode server response.")
 		fmt.Println(err)
 		os.Exit(1)
 	}

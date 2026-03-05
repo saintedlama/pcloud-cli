@@ -1,18 +1,16 @@
-package commands
+package cli
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/user"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/config"
-	"github.com/storvik/pcloud-cli/helpers"
+	"github.com/storvik/pcloud-cli/internal/config"
+	"github.com/storvik/pcloud-cli/internal/helpers"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 func init() {
@@ -49,31 +47,16 @@ func authorize(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("The code you entered: %s", code)
 
-	parameters := url.Values{}
-	parameters.Add("client_id", ClientID)
-	parameters.Add("client_secret", ClientSecret)
-	parameters.Add("code", strings.Replace(code, "\n", "", -1))
-
-	pcloud := NewPcloud()
-	pcloud.Endpoint = "/oauth2_token"
-	pcloud.Parameters = parameters
-
-	resp, err := pcloud.Query()
+	api := pcloud.NewAPI()
+	auth, err := api.Authorize(ClientID, ClientSecret, code)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	var dat map[string]interface{}
-
-	if err := json.Unmarshal(resp, &dat); err != nil {
-		panic(err)
-	}
-
 	var conf config.File
-
-	conf.UserID = int(dat["userid"].(float64))
-	conf.AccessToken = dat["access_token"].(string)
+	conf.UserID = auth.UserID
+	conf.AccessToken = auth.AccessToken
 
 	usr, _ := user.Current()
 	configPath := usr.HomeDir

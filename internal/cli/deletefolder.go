@@ -1,14 +1,12 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
-	m "github.com/storvik/pcloud-cli/models"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -40,29 +38,12 @@ func deletefolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	parameters := url.Values{}
-	if args[0][0] != 47 {
-		parameters.Add("path", "/"+args[0])
-	} else {
-		parameters.Add("path", args[0])
-	}
-
-	pcloud := new(Pcloud)
-	pcloud.Parameters = parameters
-	pcloud.AccessToken = AccessToken
+	api := pcloud.NewAPI()
 
 	switch {
 	case deleterecursive:
-		pcloud.Endpoint = "/deletefolderrecursive"
-		resp, err := pcloud.Query()
+		response, err := api.DeleteFolderRecursive(args[0], AccessToken)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		var response m.DeletefolderRecursiveResponse
-		if err := json.Unmarshal(resp, &response); err != nil {
-			fmt.Println("Could not decode server response.")
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -73,16 +54,8 @@ func deletefolder(cmd *cobra.Command, args []string) {
 			fmt.Println("Deleted folders: " + strconv.Itoa(response.DeletedFolders))
 		}
 	default:
-		pcloud.Endpoint = "/deletefolder"
-		resp, err := pcloud.Query()
+		response, err := api.DeleteFolder(args[0], AccessToken)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		var response m.DeletefolderResponse
-		if err := json.Unmarshal(resp, &response); err != nil {
-			fmt.Println("Could not decode server response.")
 			fmt.Println(err)
 			os.Exit(1)
 		}

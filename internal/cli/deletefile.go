@@ -1,14 +1,12 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/models"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -34,27 +32,9 @@ func deletefile(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	parameters := url.Values{}
-	if args[0][0] != 47 {
-		parameters.Add("path", "/"+args[0])
-	} else {
-		parameters.Add("path", args[0])
-	}
-
-	pcloud := new(Pcloud)
-	pcloud.Endpoint = "/deletefile"
-	pcloud.Parameters = parameters
-	pcloud.AccessToken = AccessToken
-
-	resp, err := pcloud.Query()
+	api := pcloud.NewAPI()
+	response, err := api.DeleteFile(args[0], AccessToken)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	var response models.DeletefileResponse
-	if err := json.Unmarshal(resp, &response); err != nil {
-		fmt.Println("Could not decode server response.")
 		fmt.Println(err)
 		os.Exit(1)
 	}

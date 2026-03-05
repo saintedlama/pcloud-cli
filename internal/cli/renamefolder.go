@@ -1,14 +1,12 @@
-package commands
+package cli
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 
 	"github.com/spf13/cobra"
-	m "github.com/storvik/pcloud-cli/models"
+	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -50,34 +48,9 @@ func renamefolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	parameters := url.Values{}
-	if args[0][0] != 47 {
-		parameters.Add("path", "/"+args[0])
-	} else {
-		parameters.Add("path", args[0])
-	}
-
-	if args[1][0] != 47 {
-		parameters.Add("topath", "/"+args[1])
-	} else {
-		parameters.Add("topath", args[1])
-	}
-
-	pcloud := new(Pcloud)
-	pcloud.Endpoint = "/renamefolder"
-	pcloud.Parameters = parameters
-	pcloud.AccessToken = AccessToken
-
-	resp, err := pcloud.Query()
+	api := pcloud.NewAPI()
+	response, err := api.RenameFolder(args[0], args[1], AccessToken)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	var response m.RenamefolderResponse
-
-	if err := json.Unmarshal(resp, &response); err != nil {
-		fmt.Println("Could not decode server response.")
 		fmt.Println(err)
 		os.Exit(1)
 	}
