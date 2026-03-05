@@ -1,1 +1,35 @@
-/vendor/*/
+# Binaries and build outputs
+/bin/
+/dist/
+/build/
+/release/
+/pcloud-cli
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test and coverage artifacts
+*.test
+*.out
+coverage.out
+coverage.txt
+
+# Go workspace files (module files should stay tracked)
+go.work
+go.work.sum
+
+# Dependency folders created by old tooling
+/Godeps/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

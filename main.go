@@ -3,13 +3,9 @@ package main
 import "github.com/storvik/pcloud-cli/commands"
 
 var (
-	// CommitHash describing current build
-	CommitHash string
-	// BuildTime marking time when built
-	BuildTime string
-
+	// TODO: European pCloud users should use eapi
 	// BaseURL to pCloud API
-	BaseURL = "https://api.pcloud.com"
+	BaseURL = "https://eapi.pcloud.com"
 	// ClientID is pCloud ID of pcloud-cli
 	ClientID = "wMJTDKXtja"
 	// ClientSecret is secret key needed to identify app
@@ -17,5 +13,5 @@ var (
 )
 
 func main() {
-	commands.Execute(CommitHash, BuildTime, BaseURL, ClientID, ClientSecret)
+	commands.Execute(BaseURL, ClientID, ClientSecret)
 }

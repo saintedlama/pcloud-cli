@@ -16,13 +16,8 @@ import (
 )
 
 var (
-	// CommitHash describing current build
-	CommitHash string
-	// BuildTime marking time when built
-	BuildTime string
-
 	// BaseURL to pCloud API
-	BaseURL = "https://api.pcloud.com"
+	BaseURL = "https://eapi.pcloud.com"
 	// ClientID is pCloud ID of pcloud-cli
 	ClientID = "wMJTDKXtja"
 	// ClientSecret is secret key needed to identify app
@@ -46,9 +41,7 @@ More info can be found on github, http://github.com/storvik/pcloud-cli`,
 }
 
 // Execute adds all child commands to the root command
-func Execute(commithash, buildtime, baseurl, clientid, clientsecret string) {
-	CommitHash = commithash
-	BuildTime = buildtime
+func Execute(baseurl, clientid, clientsecret string) {
 	BaseURL = baseurl
 	ClientID = clientid
 	ClientSecret = clientsecret
@@ -61,7 +54,7 @@ func Execute(commithash, buildtime, baseurl, clientid, clientsecret string) {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.pcloud-cli.json)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.pcloud.json)")
 	RootCmd.PersistentFlags().StringVar(&AccessToken, "token", "", "bearer token to access API, can be used when not using config file")
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output for debugging")
 
@@ -71,7 +64,7 @@ func init() {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 
-	viper.SetConfigName(".pcloud-cli")
+	viper.SetConfigName(".pcloud")
 	viper.AddConfigPath("$HOME")
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()

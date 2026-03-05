@@ -78,5 +78,5 @@ func authorize(cmd *cobra.Command, args []string) {
 	usr, _ := user.Current()
 	configPath := usr.HomeDir
 
-	config.WriteConfig(configPath, ".pcloud-cli", &conf)
+	config.WriteConfig(configPath, ".pcloud", &conf)
 }
