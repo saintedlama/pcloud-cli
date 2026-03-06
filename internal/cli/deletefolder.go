@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -38,11 +37,9 @@ func deletefolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	api := pcloud.NewAPI()
-
 	switch {
 	case deleterecursive:
-		response, err := api.DeleteFolderRecursive(args[0], AccessToken)
+		response, err := API.DeleteFolderRecursive(args[0])
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -54,7 +51,7 @@ func deletefolder(cmd *cobra.Command, args []string) {
 			fmt.Println("Deleted folders: " + strconv.Itoa(response.DeletedFolders))
 		}
 	default:
-		response, err := api.DeleteFolder(args[0], AccessToken)
+		response, err := API.DeleteFolder(args[0])
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

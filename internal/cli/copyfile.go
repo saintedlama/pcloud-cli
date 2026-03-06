@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -39,8 +38,7 @@ func copyfile(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	api := pcloud.NewAPI()
-	response, err := api.CopyFile(args[0], args[1], overwrite, AccessToken)
+	response, err := API.CopyFile(args[0], args[1], overwrite)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

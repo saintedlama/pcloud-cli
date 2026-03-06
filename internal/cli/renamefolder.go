@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -48,8 +47,7 @@ func renamefolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	api := pcloud.NewAPI()
-	response, err := api.RenameFolder(args[0], args[1], AccessToken)
+	response, err := API.RenameFolder(args[0], args[1])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

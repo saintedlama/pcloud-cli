@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -31,8 +30,7 @@ func checksumfile(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	api := pcloud.NewAPI()
-	response, err := api.Checksum(args[0], AccessToken)
+	response, err := API.Checksum(args[0])
 	if err != nil {
 		fmt.Println("Could not fetch checksum.")
 		fmt.Println(err)

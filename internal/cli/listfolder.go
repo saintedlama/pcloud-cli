@@ -6,7 +6,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -55,8 +54,7 @@ func listfolder(cmd *cobra.Command, args []string) {
 		path = args[0]
 	}
 
-	api := pcloud.NewAPI()
-	response, err := api.ListFolder(path, nofiles, showdeleted, AccessToken)
+	response, err := API.ListFolder(path, nofiles, showdeleted)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

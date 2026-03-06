@@ -4,12 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/storvik/pcloud-cli/internal/config"
 	"github.com/storvik/pcloud-cli/internal/helpers"
 	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
@@ -91,22 +90,22 @@ func onboard(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Write config
-	var conf config.File
-	conf.UserID = auth.UserID
-	conf.AccessToken = auth.AccessToken
-	conf.BaseURL = apiBaseURL
+	// Write config via viper
+	viper.Set("access_token", auth.AccessToken)
+	viper.Set("userid", auth.UserID)
+	viper.Set("base_url", apiBaseURL)
 
-	usr, err := user.Current()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Println("Could not determine home directory:", err)
 		os.Exit(1)
 	}
-
-	if err := config.WriteConfig(usr.HomeDir, ".pcloud", &conf); err != nil {
+	configPath := filepath.Join(homeDir, ".pcloud.json")
+	if err := viper.WriteConfigAs(configPath); err != nil {
 		fmt.Println("Failed to write config:", err)
 		os.Exit(1)
 	}
+	fmt.Println("Configuration written to", configPath)
 
 	fmt.Println("Onboarding complete! You can now use pcloud-cli.")
 }

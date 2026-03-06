@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -46,8 +45,7 @@ func createfolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	api := pcloud.NewAPI()
-	response, err := api.CreateFolder(args[0], AccessToken)
+	response, err := API.CreateFolder(args[0])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

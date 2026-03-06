@@ -17,81 +17,65 @@ import (
 	"github.com/storvik/pcloud-cli/internal/pcloud/models"
 )
 
-var (
-	baseURL string
-	verbose bool
-)
-
-func SetBaseURL(apiBaseURL string) {
-	baseURL = apiBaseURL
-}
-
-func SetVerbose(enabled bool) {
-	verbose = enabled
-}
-
-// API struct containing requests.
-//
-// Keep exported field names for existing CLI command usage.
-//
-//nolint:revive
+// API is a pCloud client holding session-level configuration.
 type API struct {
-	Endpoint    string
-	Parameters  url.Values
+	BaseURL     string
 	AccessToken string
-	Body        io.Reader
-	Headers     map[string]string
 }
 
-// NewAPI returns a new API struct.
+// Request holds the per-call data passed to Query.
+type Request struct {
+	Endpoint   string
+	Parameters url.Values
+	Body       io.Reader
+	Headers    map[string]string
+}
+
+// NewAPI returns a new API client.
 func NewAPI() *API {
-	return &API{Headers: make(map[string]string)}
+	return &API{}
 }
 
-// Query API endpoint with url parameters. If authorization is true, the authorization
-// header is set. Returns json []byte and optional error from server.
-func (p *API) Query() ([]byte, error) {
-	if strings.TrimSpace(baseURL) == "" {
+// Query executes req against the API and returns the raw JSON response body.
+func (p *API) Query(req *Request) ([]byte, error) {
+	if strings.TrimSpace(p.BaseURL) == "" {
 		return []byte{}, errors.New("pCloud API base URL is not configured")
 	}
 
-	requestURL, err := url.Parse(baseURL)
+	requestURL, err := url.Parse(p.BaseURL)
 	if err != nil {
-		fmt.Println("Error: Could not parse base url")
-		os.Exit(1)
+		return []byte{}, fmt.Errorf("could not parse base URL: %w", err)
 	}
 
-	requestURL.Path += p.Endpoint
-	requestURL.RawQuery = p.Parameters.Encode()
+	requestURL.Path += req.Endpoint
+	requestURL.RawQuery = req.Parameters.Encode()
 
-	if verbose {
-		fmt.Println("Query path: " + requestURL.String())
+	httpReq, err := http.NewRequest("POST", requestURL.String(), req.Body)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not create request: %w", err)
 	}
-
-	request, err := http.NewRequest("POST", requestURL.String(), p.Body)
-	for key, value := range p.Headers {
-		request.Header.Add(key, value)
+	for key, value := range req.Headers {
+		httpReq.Header.Add(key, value)
 	}
 	if p.AccessToken != "" {
-		request.Header.Add("Authorization", "Bearer "+p.AccessToken)
+		httpReq.Header.Add("Authorization", "Bearer "+p.AccessToken)
 	}
 
 	client := &http.Client{}
-	resp, err := client.Do(request)
+	resp, err := client.Do(httpReq)
 	if err != nil {
-		fmt.Println("Error: Could not query endpoint")
-		os.Exit(1)
+		return []byte{}, fmt.Errorf("could not query endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
-	responseBody, _ := io.ReadAll(resp.Body)
-	if verbose {
-		fmt.Println("Response Status:", resp.Status)
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not read response body: %w", err)
 	}
 
 	var dat map[string]any
 	if err := json.Unmarshal(responseBody, &dat); err != nil {
-		panic(err)
+		return []byte{}, fmt.Errorf("could not parse response JSON: %w", err)
 	}
 
 	if dat["result"].(float64) != 0 {
@@ -102,19 +86,17 @@ func (p *API) Query() ([]byte, error) {
 }
 
 // Checksum fetches MD5 and SHA1 checksums for a remote file path.
-func (p *API) Checksum(path, accessToken string) (models.ChecksumfileResponse, error) {
+func (p *API) Checksum(path string) (models.ChecksumfileResponse, error) {
 	if strings.TrimSpace(path) == "" {
 		return models.ChecksumfileResponse{}, errors.New("path cannot be empty")
 	}
 
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+	req := &Request{
+		Endpoint:   "/checksumfile",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/checksumfile"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.ChecksumfileResponse{}, err
 	}
@@ -152,9 +134,6 @@ func (p *API) Authorize(tokenEndpoint, code string) (AuthorizeResponse, error) {
 	parameters.Add("code", strings.TrimSpace(code))
 
 	requestURL := tokenEndpoint + "?" + parameters.Encode()
-	if verbose {
-		fmt.Println("Authorize URL: " + requestURL)
-	}
 
 	req, err := http.NewRequest("POST", requestURL, nil)
 	if err != nil {
@@ -171,9 +150,6 @@ func (p *API) Authorize(tokenEndpoint, code string) (AuthorizeResponse, error) {
 	resp, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return AuthorizeResponse{}, err
-	}
-	if verbose {
-		fmt.Println("Authorize response status:", httpResp.Status)
 	}
 
 	var dat map[string]interface{}
@@ -209,15 +185,13 @@ func (p *API) Authorize(tokenEndpoint, code string) (AuthorizeResponse, error) {
 	}, nil
 }
 
-func (p *API) GetFileLink(path, accessToken string) (models.GetfileResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+func (p *API) GetFileLink(path string) (models.GetfileResponse, error) {
+	req := &Request{
+		Endpoint:   "/getfilelink",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/getfilelink"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.GetfileResponse{}, err
 	}
@@ -230,7 +204,7 @@ func (p *API) GetFileLink(path, accessToken string) (models.GetfileResponse, err
 	return response, nil
 }
 
-func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool, accessToken string) (models.UploadfileResponse, error) {
+func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool) (models.UploadfileResponse, error) {
 	fileContents, err := os.ReadFile(localPath)
 	if err != nil {
 		return models.UploadfileResponse{}, err
@@ -251,8 +225,7 @@ func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool, acce
 		return models.UploadfileResponse{}, err
 	}
 
-	parameters := url.Values{}
-	parameters.Add("nopartial", "1")
+	parameters := url.Values{"nopartial": {"1"}}
 	if renameIfExists {
 		parameters.Add("renameifexists", "1")
 	}
@@ -262,13 +235,14 @@ func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool, acce
 		parameters.Add("path", normalizePath(remotePath))
 	}
 
-	p.Endpoint = "/uploadfile"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-	p.Body = body
-	p.Headers["Content-Type"] = writer.FormDataContentType()
+	req := &Request{
+		Endpoint:   "/uploadfile",
+		Parameters: parameters,
+		Body:       body,
+		Headers:    map[string]string{"Content-Type": writer.FormDataContentType()},
+	}
 
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.UploadfileResponse{}, err
 	}
@@ -281,19 +255,21 @@ func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool, acce
 	return response, nil
 }
 
-func (p *API) CopyFile(sourcePath, destinationPath string, overwrite bool, accessToken string) (models.CopyfileResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(sourcePath))
-	parameters.Add("topath", normalizePath(destinationPath))
+func (p *API) CopyFile(sourcePath, destinationPath string, overwrite bool) (models.CopyfileResponse, error) {
+	parameters := url.Values{
+		"path":   {normalizePath(sourcePath)},
+		"topath": {normalizePath(destinationPath)},
+	}
 	if !overwrite {
 		parameters.Add("noover", "1")
 	}
 
-	p.Endpoint = "/copyfile"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
+	req := &Request{
+		Endpoint:   "/copyfile",
+		Parameters: parameters,
+	}
 
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.CopyfileResponse{}, err
 	}
@@ -306,15 +282,13 @@ func (p *API) CopyFile(sourcePath, destinationPath string, overwrite bool, acces
 	return response, nil
 }
 
-func (p *API) CreateFolder(path, accessToken string) (models.CreatefolderResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+func (p *API) CreateFolder(path string) (models.CreatefolderResponse, error) {
+	req := &Request{
+		Endpoint:   "/createfolder",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/createfolder"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.CreatefolderResponse{}, err
 	}
@@ -327,15 +301,13 @@ func (p *API) CreateFolder(path, accessToken string) (models.CreatefolderRespons
 	return response, nil
 }
 
-func (p *API) DeleteFile(path, accessToken string) (models.DeletefileResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+func (p *API) DeleteFile(path string) (models.DeletefileResponse, error) {
+	req := &Request{
+		Endpoint:   "/deletefile",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/deletefile"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.DeletefileResponse{}, err
 	}
@@ -348,15 +320,13 @@ func (p *API) DeleteFile(path, accessToken string) (models.DeletefileResponse, e
 	return response, nil
 }
 
-func (p *API) DeleteFolder(path, accessToken string) (models.DeletefolderResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+func (p *API) DeleteFolder(path string) (models.DeletefolderResponse, error) {
+	req := &Request{
+		Endpoint:   "/deletefolder",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/deletefolder"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.DeletefolderResponse{}, err
 	}
@@ -369,15 +339,13 @@ func (p *API) DeleteFolder(path, accessToken string) (models.DeletefolderRespons
 	return response, nil
 }
 
-func (p *API) DeleteFolderRecursive(path, accessToken string) (models.DeletefolderRecursiveResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(path))
+func (p *API) DeleteFolderRecursive(path string) (models.DeletefolderRecursiveResponse, error) {
+	req := &Request{
+		Endpoint:   "/deletefolderrecursive",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
 
-	p.Endpoint = "/deletefolderrecursive"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.DeletefolderRecursiveResponse{}, err
 	}
@@ -390,13 +358,13 @@ func (p *API) DeleteFolderRecursive(path, accessToken string) (models.Deletefold
 	return response, nil
 }
 
-func (p *API) ListFolder(path string, nofiles, showdeleted bool, accessToken string) (models.ListfolderResponse, error) {
-	parameters := url.Values{}
+func (p *API) ListFolder(path string, nofiles, showdeleted bool) (models.ListfolderResponse, error) {
 	if strings.TrimSpace(path) == "" {
-		parameters.Add("path", "/")
+		path = "/"
 	} else {
-		parameters.Add("path", normalizePath(path))
+		path = normalizePath(path)
 	}
+	parameters := url.Values{"path": {path}}
 	if nofiles {
 		parameters.Add("nofiles", "1")
 	}
@@ -404,11 +372,12 @@ func (p *API) ListFolder(path string, nofiles, showdeleted bool, accessToken str
 		parameters.Add("showdeleted", "1")
 	}
 
-	p.Endpoint = "/listfolder"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
+	req := &Request{
+		Endpoint:   "/listfolder",
+		Parameters: parameters,
+	}
 
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.ListfolderResponse{}, err
 	}
@@ -421,16 +390,16 @@ func (p *API) ListFolder(path string, nofiles, showdeleted bool, accessToken str
 	return response, nil
 }
 
-func (p *API) RenameFile(sourcePath, destinationPath, accessToken string) (models.RenamefileResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(sourcePath))
-	parameters.Add("topath", normalizePath(destinationPath))
+func (p *API) RenameFile(sourcePath, destinationPath string) (models.RenamefileResponse, error) {
+	req := &Request{
+		Endpoint: "/renamefile",
+		Parameters: url.Values{
+			"path":   {normalizePath(sourcePath)},
+			"topath": {normalizePath(destinationPath)},
+		},
+	}
 
-	p.Endpoint = "/renamefile"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.RenamefileResponse{}, err
 	}
@@ -443,16 +412,16 @@ func (p *API) RenameFile(sourcePath, destinationPath, accessToken string) (model
 	return response, nil
 }
 
-func (p *API) RenameFolder(sourcePath, destinationPath, accessToken string) (models.RenamefolderResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("path", normalizePath(sourcePath))
-	parameters.Add("topath", normalizePath(destinationPath))
+func (p *API) RenameFolder(sourcePath, destinationPath string) (models.RenamefolderResponse, error) {
+	req := &Request{
+		Endpoint: "/renamefolder",
+		Parameters: url.Values{
+			"path":   {normalizePath(sourcePath)},
+			"topath": {normalizePath(destinationPath)},
+		},
+	}
 
-	p.Endpoint = "/renamefolder"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.RenamefolderResponse{}, err
 	}
@@ -465,13 +434,12 @@ func (p *API) RenameFolder(sourcePath, destinationPath, accessToken string) (mod
 	return response, nil
 }
 
-func (p *API) GetZipLinkByFolderID(folderID int, filename string, forceDownload bool, accessToken string) (models.GetziplinkResponse, error) {
+func (p *API) GetZipLinkByFolderID(folderID int, filename string, forceDownload bool) (models.GetziplinkResponse, error) {
 	if folderID < 0 {
 		return models.GetziplinkResponse{}, errors.New("folder id must be >= 0")
 	}
 
-	parameters := url.Values{}
-	parameters.Add("folderid", strconv.Itoa(folderID))
+	parameters := url.Values{"folderid": {strconv.Itoa(folderID)}}
 	if strings.TrimSpace(filename) != "" {
 		parameters.Add("filename", filename)
 	}
@@ -479,12 +447,12 @@ func (p *API) GetZipLinkByFolderID(folderID int, filename string, forceDownload 
 		parameters.Add("forcedownload", "1")
 	}
 
-	p.Endpoint = "/getziplink"
-	p.Parameters = parameters
-	p.AccessToken = accessToken
-	p.Body = nil
+	req := &Request{
+		Endpoint:   "/getziplink",
+		Parameters: parameters,
+	}
 
-	resp, err := p.Query()
+	resp, err := p.Query(req)
 	if err != nil {
 		return models.GetziplinkResponse{}, err
 	}

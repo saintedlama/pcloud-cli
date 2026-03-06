@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -41,8 +40,7 @@ func uploadfile(cmd *cobra.Command, args []string) {
 		remotePath = args[1]
 	}
 
-	api := pcloud.NewAPI()
-	_, err := api.UploadFile(args[0], remotePath, renameifexists, AccessToken)
+	_, err := API.UploadFile(args[0], remotePath, renameifexists)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

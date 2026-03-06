@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
@@ -41,8 +40,7 @@ func downloadfolder(cmd *cobra.Command, args []string) {
 		localDestination = args[1]
 	}
 
-	api := pcloud.NewAPI()
-	folderData, err := api.ListFolder(remotePath, true, false, AccessToken)
+	folderData, err := API.ListFolder(remotePath, true, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -57,7 +55,7 @@ func downloadfolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	zipLink, err := api.GetZipLinkByFolderID(folderData.Metadata.FolderID, folderName+".zip", false, AccessToken)
+	zipLink, err := API.GetZipLinkByFolderID(folderData.Metadata.FolderID, folderName+".zip", false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
