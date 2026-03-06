@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	baseURL = "https://eapi.pcloud.com"
+	baseURL string
 	verbose bool
 )
 
@@ -51,6 +51,10 @@ func NewAPI() *API {
 // Query API endpoint with url parameters. If authorization is true, the authorization
 // header is set. Returns json []byte and optional error from server.
 func (p *API) Query() ([]byte, error) {
+	if strings.TrimSpace(baseURL) == "" {
+		return []byte{}, errors.New("pCloud API base URL is not configured")
+	}
+
 	requestURL, err := url.Parse(baseURL)
 	if err != nil {
 		fmt.Println("Error: Could not parse base url")
@@ -123,26 +127,53 @@ func (p *API) Checksum(path, accessToken string) (models.ChecksumfileResponse, e
 	return response, nil
 }
 
+const (
+	oauthClientID     = "wMJTDKXtja"
+	oauthClientSecret = "bCS3k9W89t0zL51qpcL2Ck3bjnF7"
+)
+
+// OAuthURL returns the browser authorization URL for the OAuth2 flow.
+func OAuthURL() string {
+	return "https://my.pcloud.com/oauth2/authorize?client_id=" + oauthClientID + "&response_type=code"
+}
+
 type AuthorizeResponse struct {
 	UserID      int
 	AccessToken string
 }
 
-func (p *API) Authorize(clientID, clientSecret, code string) (AuthorizeResponse, error) {
+// Authorize exchanges an OAuth2 authorization code for an access token.
+// tokenEndpoint should be the full base URL for the token exchange, e.g.
+// "https://api.pcloud.com/oauth2_token" (US) or "https://eapi.pcloud.com/oauth2_token" (EU).
+func (p *API) Authorize(tokenEndpoint, code string) (AuthorizeResponse, error) {
 	parameters := url.Values{}
-	parameters.Add("client_id", clientID)
-	parameters.Add("client_secret", clientSecret)
+	parameters.Add("client_id", oauthClientID)
+	parameters.Add("client_secret", oauthClientSecret)
 	parameters.Add("code", strings.TrimSpace(code))
 
-	p.Endpoint = "/oauth2_token"
-	p.Parameters = parameters
-	p.AccessToken = ""
-	p.Body = nil
-	p.Headers = map[string]string{}
+	requestURL := tokenEndpoint + "?" + parameters.Encode()
+	if verbose {
+		fmt.Println("Authorize URL: " + requestURL)
+	}
 
-	resp, err := p.Query()
+	req, err := http.NewRequest("POST", requestURL, nil)
 	if err != nil {
 		return AuthorizeResponse{}, err
+	}
+
+	client := &http.Client{}
+	httpResp, err := client.Do(req)
+	if err != nil {
+		return AuthorizeResponse{}, err
+	}
+	defer httpResp.Body.Close()
+
+	resp, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return AuthorizeResponse{}, err
+	}
+	if verbose {
+		fmt.Println("Authorize response status:", httpResp.Status)
 	}
 
 	var dat map[string]interface{}
@@ -150,9 +181,31 @@ func (p *API) Authorize(clientID, clientSecret, code string) (AuthorizeResponse,
 		return AuthorizeResponse{}, err
 	}
 
+	if result, ok := dat["result"].(float64); ok && result != 0 {
+		errMsg, _ := dat["error"].(string)
+		if strings.TrimSpace(errMsg) == "" {
+			errMsg = "oauth2_token request failed"
+		}
+		return AuthorizeResponse{}, errors.New("Error " + strconv.FormatFloat(result, 'f', 0, 64) + ": " + errMsg)
+	}
+
+	var userID int
+	if uid, ok := dat["uid"].(float64); ok {
+		userID = int(uid)
+	} else if uid, ok := dat["userid"].(float64); ok {
+		userID = int(uid)
+	} else {
+		return AuthorizeResponse{}, errors.New("oauth2_token response missing uid")
+	}
+
+	accessToken, ok := dat["access_token"].(string)
+	if !ok || strings.TrimSpace(accessToken) == "" {
+		return AuthorizeResponse{}, errors.New("oauth2_token response missing access_token")
+	}
+
 	return AuthorizeResponse{
-		UserID:      int(dat["userid"].(float64)),
-		AccessToken: dat["access_token"].(string),
+		UserID:      userID,
+		AccessToken: accessToken,
 	}, nil
 }
 
@@ -407,6 +460,38 @@ func (p *API) RenameFolder(sourcePath, destinationPath, accessToken string) (mod
 	var response models.RenamefolderResponse
 	if err := json.Unmarshal(resp, &response); err != nil {
 		return models.RenamefolderResponse{}, err
+	}
+
+	return response, nil
+}
+
+func (p *API) GetZipLinkByFolderID(folderID int, filename string, forceDownload bool, accessToken string) (models.GetziplinkResponse, error) {
+	if folderID < 0 {
+		return models.GetziplinkResponse{}, errors.New("folder id must be >= 0")
+	}
+
+	parameters := url.Values{}
+	parameters.Add("folderid", strconv.Itoa(folderID))
+	if strings.TrimSpace(filename) != "" {
+		parameters.Add("filename", filename)
+	}
+	if forceDownload {
+		parameters.Add("forcedownload", "1")
+	}
+
+	p.Endpoint = "/getziplink"
+	p.Parameters = parameters
+	p.AccessToken = accessToken
+	p.Body = nil
+
+	resp, err := p.Query()
+	if err != nil {
+		return models.GetziplinkResponse{}, err
+	}
+
+	var response models.GetziplinkResponse
+	if err := json.Unmarshal(resp, &response); err != nil {
+		return models.GetziplinkResponse{}, err
 	}
 
 	return response, nil

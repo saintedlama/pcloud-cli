@@ -1,5 +1,6 @@
 APPNAME = pcloud-cli
 PACKAGE = github.com/storvik/${APPNAME}
+MAIN=cmd/${APPNAME}/main.go
 
 .PHONY: all clean fmt lint help
 .DEFAULT_GOAL := help
@@ -12,7 +13,7 @@ clean:
 	rm -rf ./release || true
 
 build: ## Build pcloud-cli binary
-	go build -o ${APPNAME}
+	go build -o ${APPNAME} ${MAIN}
 
 install: ## Install pcloud-cli binary
 	go install ${PACKAGE}

@@ -10,7 +10,13 @@ Command line interface to pCloud API written in Go.
 pcloud-cli --help
 ```
 
-Run `pcloud-cli authorize` to authorize pCloud-cli and save authorization data to `~/.pcloud-cli.json`.
+Run `pcloud-cli onboard` to set up pCloud-cli and save authorization data to `~/.pcloud.json`.
+
+Before running onboarding, configure API and OAuth settings using environment variables or config values:
+
+- `PCLOUD_BASE_URL` (or `base_url` in config)
+- `PCLOUD_CLIENT_ID` (or `client_id` in config)
+- `PCLOUD_CLIENT_SECRET` (or `client_secret` in config)
 
 ## Build
 
@@ -30,7 +36,7 @@ Usage:
   pCloud-cli [command]
 
 Available Commands:
-  authorize   Authorize with pCloud.
+  onboard     Set up pCloud-cli and authenticate.
   file        Actions to manage files.
   folder      Actions to manage folders.
   help        Help about any command

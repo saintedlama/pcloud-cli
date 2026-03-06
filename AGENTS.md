@@ -42,6 +42,8 @@ Any change should pass these checks locally before handoff.
 
 - This project uses Go modules (`go.mod`, `go.sum`) as source of truth.
 - Do not reintroduce legacy dep tooling (`govendor`, `Godeps`, etc.).
+- Never add credentials to git (source, docs, tests, examples, or CI files).
+- Never hardcode access tokens, OAuth client IDs, OAuth client secrets, API keys, or passwords.
 - Keep secrets and tokens out of logs, docs, and commit history.
 - Avoid touching unrelated command files when changing one subcommand.
 
