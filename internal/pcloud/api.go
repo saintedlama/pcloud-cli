@@ -17,6 +17,11 @@ import (
 	"github.com/storvik/pcloud-cli/internal/pcloud/models"
 )
 
+const (
+	oauthClientID     = "wMJTDKXtja"
+	oauthClientSecret = "bCS3k9W89t0zL51qpcL2Ck3bjnF7"
+)
+
 // API is a pCloud client holding session-level configuration.
 type API struct {
 	BaseURL     string
@@ -108,11 +113,6 @@ func (p *API) Checksum(path string) (models.ChecksumfileResponse, error) {
 
 	return response, nil
 }
-
-const (
-	oauthClientID     = "wMJTDKXtja"
-	oauthClientSecret = "bCS3k9W89t0zL51qpcL2Ck3bjnF7"
-)
 
 // OAuthURL returns the browser authorization URL for the OAuth2 flow.
 func OAuthURL() string {

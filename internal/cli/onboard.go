@@ -1,12 +1,11 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/storvik/pcloud-cli/internal/helpers"
@@ -28,44 +27,47 @@ config file.`,
 	Run: onboard,
 }
 
+type regionOption struct {
+	Name     string
+	BaseURL  string
+	TokenURL string
+}
+
 func onboard(cmd *cobra.Command, args []string) {
 	// Check for existing config
 	if viper.ConfigFileUsed() != "" {
 		fmt.Println("An existing configuration file was found:", viper.ConfigFileUsed())
-		if !helpers.AskConfirmation("Continue and overwrite the existing configuration?") {
+		confirmPrompt := promptui.Select{
+			Label: "Continue and overwrite the existing configuration?",
+			Items: []string{"No", "Yes"},
+		}
+		_, confirm, err := confirmPrompt.Run()
+		if err != nil || confirm == "No" {
 			fmt.Println("Onboarding cancelled.")
 			return
 		}
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	// Prompt for server region
-	var apiBaseURL, tokenEndpoint string
-	for {
-		fmt.Println()
-		fmt.Println("Select server region:")
-		fmt.Println("  1) US  (api.pcloud.com)")
-		fmt.Println("  2) EU  (eapi.pcloud.com)")
-		fmt.Print("Region [1/2]: ")
-		choice, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			os.Exit(1)
-		}
-		switch strings.TrimSpace(choice) {
-		case "1", "us", "US":
-			apiBaseURL = "https://api.pcloud.com"
-			tokenEndpoint = "https://api.pcloud.com/oauth2_token"
-		case "2", "eu", "EU":
-			apiBaseURL = "https://eapi.pcloud.com"
-			tokenEndpoint = "https://eapi.pcloud.com/oauth2_token"
-		default:
-			fmt.Println("Invalid choice, please enter 1 or 2.")
-			continue
-		}
-		break
+	regions := []regionOption{
+		{Name: "US (api.pcloud.com)", BaseURL: "https://api.pcloud.com", TokenURL: "https://api.pcloud.com/oauth2_token"},
+		{Name: "EU (eapi.pcloud.com)", BaseURL: "https://eapi.pcloud.com", TokenURL: "https://eapi.pcloud.com/oauth2_token"},
 	}
+	regionNames := make([]string, len(regions))
+	for i, r := range regions {
+		regionNames[i] = r.Name
+	}
+	regionPrompt := promptui.Select{
+		Label: "Select server region",
+		Items: regionNames,
+	}
+	idx, _, err := regionPrompt.Run()
+	if err != nil {
+		fmt.Println("Region selection cancelled:", err)
+		os.Exit(1)
+	}
+	apiBaseURL := regions[idx].BaseURL
+	tokenEndpoint := regions[idx].TokenURL
 
 	// OAuth flow
 	authURL := pcloud.OAuthURL()
@@ -75,10 +77,18 @@ func onboard(cmd *cobra.Command, args []string) {
 	fmt.Println(authURL)
 	helpers.Clipboard.Add(authURL)
 
-	fmt.Print("Code: ")
-	code, err := reader.ReadString('\n')
+	codePrompt := promptui.Prompt{
+		Label: "Code",
+		Validate: func(input string) error {
+			if len(input) == 0 {
+				return fmt.Errorf("code cannot be empty")
+			}
+			return nil
+		},
+	}
+	code, err := codePrompt.Run()
 	if err != nil {
-		fmt.Println("Error reading code:", err)
+		fmt.Println("Input cancelled:", err)
 		os.Exit(1)
 	}
 

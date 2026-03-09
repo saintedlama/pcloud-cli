@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
+	"time"
 
+	"github.com/fatih/color"
+	"github.com/rodaine/table"
 	"github.com/spf13/cobra"
 )
 
@@ -60,11 +62,33 @@ func listfolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 20, 4, 4, ' ', 0)
-	fmt.Fprintf(w, "%s\t%s\t%s\n", "Name", "Modified", "ID")
-	for i := range response.Metadata.Contents {
-		fmt.Fprintf(w, "%s\t%s\t%d\n", response.Metadata.Contents[i].Name, response.Metadata.Contents[i].Modified, response.Metadata.Contents[i].FolderID)
+	headerFmt := color.New(color.FgHiYellow, color.Bold).SprintfFunc()
+	fileFmt := color.New(color.FgHiCyan).SprintfFunc()
+
+	tbl := table.New("Name", "Modified", "ID")
+	tbl.WithHeaderFormatter(headerFmt)
+	tbl.WithFirstColumnFormatter(fileFmt)
+
+	var fileCount, dirCount int
+	for _, item := range response.Metadata.Contents {
+		modified := item.Modified
+		if t, err := time.Parse(time.RFC1123Z, item.Modified); err == nil {
+			modified = t.Format("2006-01-02")
+		}
+		if item.IsFolder {
+			dirCount++
+		} else {
+			fileCount++
+		}
+		tbl.AddRow(item.Name, modified, item.FolderID)
 	}
-	w.Flush()
+	tbl.Print()
+
+	dimFmt := color.New(color.FgHiBlack).SprintfFunc()
+	boldFmt := color.New(color.Bold).SprintfFunc()
+	fmt.Printf("\n%s %s,  %s %s,  %s %s\n",
+		dimFmt("directories:"), boldFmt("%d", dirCount),
+		dimFmt("files:"), boldFmt("%d", fileCount),
+		dimFmt("total:"), boldFmt("%d", dirCount+fileCount),
+	)
 }
