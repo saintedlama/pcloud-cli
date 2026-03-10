@@ -115,11 +115,36 @@ func (p *API) Checksum(path string) (models.ChecksumfileResponse, error) {
 
 // UserinfoResponse holds the fields returned by /userinfo when called with getauth=1.
 type UserinfoResponse struct {
-	UserID    int    `json:"userid"`
-	Email     string `json:"email"`
-	Auth      string `json:"auth"`
-	Quota     int64  `json:"quota"`
-	UsedQuota int64  `json:"usedquota"`
+	UserID          int    `json:"userid"`
+	Email           string `json:"email"`
+	Auth            string `json:"auth"`
+	Quota           int64  `json:"quota"`
+	UsedQuota       int64  `json:"usedquota"`
+	Plan            int    `json:"plan"`
+	Premium         bool   `json:"premium"`
+	PremiumLifetime bool   `json:"premiumlifetime"`
+	PremiumExpires  string `json:"premiumexpires"`
+	Currency        string `json:"currency"`
+}
+
+// GetUserInfo fetches account information for the authenticated user.
+func (p *API) GetUserInfo() (UserinfoResponse, error) {
+	req := &Request{
+		Endpoint:   "/userinfo",
+		Parameters: url.Values{},
+	}
+
+	raw, err := p.Query(req)
+	if err != nil {
+		return UserinfoResponse{}, err
+	}
+
+	var response UserinfoResponse
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return UserinfoResponse{}, err
+	}
+
+	return response, nil
 }
 
 // LoginWithPassword authenticates with username+password and returns the parsed
