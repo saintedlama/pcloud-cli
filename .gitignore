@@ -9,6 +9,7 @@
 *.dll
 *.so
 *.dylib
+main
 
 # Go test and coverage artifacts
 *.test

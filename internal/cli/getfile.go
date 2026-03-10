@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/saintedlama/pcloud-cli/internal/helpers"
 	"github.com/spf13/cobra"
-	"github.com/storvik/pcloud-cli/internal/helpers"
 )
 
 var (

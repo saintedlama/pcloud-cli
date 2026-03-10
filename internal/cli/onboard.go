@@ -1,121 +1,106 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+"fmt"
+"os"
+"path/filepath"
 
-	"github.com/manifoldco/promptui"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/storvik/pcloud-cli/internal/helpers"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
+"github.com/manifoldco/promptui"
+"github.com/spf13/cobra"
+"github.com/spf13/viper"
 )
 
 func init() {
-	RootCmd.AddCommand(onboardCmd)
+RootCmd.AddCommand(onboardCmd)
 }
 
 var onboardCmd = &cobra.Command{
-	Use:   "onboard",
-	Short: "Set up pcloud-cli for the first time.",
-	Long: `Onboard guides you through the initial setup of pcloud-cli.
-It will ask for your preferred server region, open the pCloud authorization
-page so you can grant access, and save the resulting credentials to your
-config file.`,
-
-	Run: onboard,
-}
-
-type regionOption struct {
-	Name     string
-	BaseURL  string
-	TokenURL string
+Use:   "onboard",
+Short: "Set up pcloud-cli for the first time.",
+Long: `Onboard guides you through the initial setup of pcloud-cli.
+It will ask for your preferred server region, email, and password,
+then save the resulting session credentials to your config file.`,
+Run: onboard,
 }
 
 func onboard(cmd *cobra.Command, args []string) {
-	// Check for existing config
-	if viper.ConfigFileUsed() != "" {
-		fmt.Println("An existing configuration file was found:", viper.ConfigFileUsed())
-		confirmPrompt := promptui.Select{
-			Label: "Continue and overwrite the existing configuration?",
-			Items: []string{"No", "Yes"},
-		}
-		_, confirm, err := confirmPrompt.Run()
-		if err != nil || confirm == "No" {
-			fmt.Println("Onboarding cancelled.")
-			return
-		}
-	}
+fmt.Println("Your username and password are used once to obtain a session token.")
+fmt.Println("Only the token is saved to ~/.pcloud.json — your credentials are never stored.")
+fmt.Println()
 
-	// Prompt for server region
-	regions := []regionOption{
-		{Name: "US (api.pcloud.com)", BaseURL: "https://api.pcloud.com", TokenURL: "https://api.pcloud.com/oauth2_token"},
-		{Name: "EU (eapi.pcloud.com)", BaseURL: "https://eapi.pcloud.com", TokenURL: "https://eapi.pcloud.com/oauth2_token"},
-	}
-	regionNames := make([]string, len(regions))
-	for i, r := range regions {
-		regionNames[i] = r.Name
-	}
-	regionPrompt := promptui.Select{
-		Label: "Select server region",
-		Items: regionNames,
-	}
-	idx, _, err := regionPrompt.Run()
-	if err != nil {
-		fmt.Println("Region selection cancelled:", err)
-		os.Exit(1)
-	}
-	apiBaseURL := regions[idx].BaseURL
-	tokenEndpoint := regions[idx].TokenURL
+// Check for existing config
+if viper.ConfigFileUsed() != "" {
+fmt.Println("An existing configuration file was found:", viper.ConfigFileUsed())
+confirmPrompt := promptui.Select{
+Label: "Continue and overwrite the existing configuration?",
+Items: []string{"No", "Yes"},
+}
+_, confirm, err := confirmPrompt.Run()
+if err != nil || confirm == "No" {
+fmt.Println("Onboarding cancelled.")
+return
+}
+}
 
-	// OAuth flow
-	authURL := pcloud.OAuthURL()
-	fmt.Println()
-	fmt.Println("Open the URL below in your browser and authorize pcloud-cli.")
-	fmt.Println("After authorization you will be shown a code — paste it here.")
-	fmt.Println(authURL)
-	helpers.Clipboard.Add(authURL)
+// Prompt for server region
+regionPrompt := promptui.Select{
+Label: "Server region",
+Items: []string{"Global (US) — api.pcloud.com", "Europe (EU) — eapi.pcloud.com"},
+}
+regionIdx, _, err := regionPrompt.Run()
+if err != nil {
+fmt.Println("Region selection cancelled:", err)
+os.Exit(1)
+}
+baseURLs := []string{"https://api.pcloud.com", "https://eapi.pcloud.com"}
+API.BaseURL = baseURLs[regionIdx]
 
-	codePrompt := promptui.Prompt{
-		Label: "Code",
-		Validate: func(input string) error {
-			if len(input) == 0 {
-				return fmt.Errorf("code cannot be empty")
-			}
-			return nil
-		},
-	}
-	code, err := codePrompt.Run()
-	if err != nil {
-		fmt.Println("Input cancelled:", err)
-		os.Exit(1)
-	}
+// Prompt for credentials
+usernamePrompt := promptui.Prompt{
+Label: "Email",
+}
+username, err := usernamePrompt.Run()
+if err != nil {
+fmt.Println("Input cancelled:", err)
+os.Exit(1)
+}
 
-	// Exchange code for access token
-	api := pcloud.NewAPI()
-	auth, err := api.Authorize(tokenEndpoint, code)
-	if err != nil {
-		fmt.Println("Authorization failed:", err)
-		os.Exit(1)
-	}
+passwordPrompt := promptui.Prompt{
+Label: "Password",
+Mask:  '*',
+}
+password, err := passwordPrompt.Run()
+if err != nil {
+fmt.Println("Input cancelled:", err)
+os.Exit(1)
+}
 
-	// Write config via viper
-	viper.Set("access_token", auth.AccessToken)
-	viper.Set("userid", auth.UserID)
-	viper.Set("base_url", apiBaseURL)
+// Authenticate
+response, _, err := API.LoginWithPassword(username, password)
+if err != nil {
+fmt.Println("Login failed:", err)
+os.Exit(1)
+}
+if response.Auth == "" {
+fmt.Println("Login failed: no auth token returned.")
+os.Exit(1)
+}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Println("Could not determine home directory:", err)
-		os.Exit(1)
-	}
-	configPath := filepath.Join(homeDir, ".pcloud.json")
-	if err := viper.WriteConfigAs(configPath); err != nil {
-		fmt.Println("Failed to write config:", err)
-		os.Exit(1)
-	}
-	fmt.Println("Configuration written to", configPath)
+// Write config
+viper.Set("auth_token", response.Auth)
+viper.Set("userid", response.UserID)
+viper.Set("base_url", API.BaseURL)
 
-	fmt.Println("Onboarding complete! You can now use pcloud-cli.")
+homeDir, err := os.UserHomeDir()
+if err != nil {
+fmt.Println("Could not determine home directory:", err)
+os.Exit(1)
+}
+configPath := filepath.Join(homeDir, ".pcloud.json")
+if err := viper.WriteConfigAs(configPath); err != nil {
+fmt.Println("Failed to write config:", err)
+os.Exit(1)
+}
+fmt.Println("Configuration written to", configPath)
+fmt.Println("Onboarding complete! You can now use pcloud-cli.")
 }

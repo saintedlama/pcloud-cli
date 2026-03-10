@@ -1,5 +1,5 @@
 APPNAME = pcloud-cli
-PACKAGE = github.com/storvik/${APPNAME}
+PACKAGE = github.com/saintedlama/${APPNAME}
 MAIN=cmd/${APPNAME}/main.go
 
 .PHONY: all clean fmt lint help

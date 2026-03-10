@@ -1,6 +1,6 @@
 # pCloud-cli - pCloud Command Line Interface
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/storvik/pcloud-cli)](https://goreportcard.com/report/github.com/storvik/pcloud-cli)
+[![Go Report Card](https://goreportcard.com/badge/github.com/saintedlama/pcloud-cli)](https://goreportcard.com/report/github.com/saintedlama/pcloud-cli)
 
 Command line interface to pCloud API written in Go.
 

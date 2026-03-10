@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/storvik/pcloud-cli/internal/cli"
+	"github.com/saintedlama/pcloud-cli/internal/cli"
 )
 
 func main() {
