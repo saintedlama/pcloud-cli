@@ -59,6 +59,7 @@ More info can be found on github, http://github.com/saintedlama/pcloud-cli`,
 			storageColor = color.New(color.FgGreen, color.Bold)
 		}
 
+		label.Print("User Information\n")
 		label.Print("Account:  ")
 		value.Println(info.Email)
 		label.Print("Plan:     ")
