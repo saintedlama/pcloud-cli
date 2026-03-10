@@ -22,7 +22,7 @@ var RootCmd = &cobra.Command{
 	Long: `A command line interface to interact with pCloud storage.
 More info can be found on github, http://github.com/saintedlama/pcloud-cli`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.GetString("auth_token") == "" {
+		if !API.IsConfigured() {
 			fmt.Println("No configuration found. Starting onboarding...")
 			fmt.Println()
 			onboard(cmd, args)

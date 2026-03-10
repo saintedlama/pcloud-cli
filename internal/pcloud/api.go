@@ -36,6 +36,11 @@ func NewAPI() *API {
 	return &API{}
 }
 
+// IsConfigured reports whether the client has both a base URL and an auth token.
+func (p *API) IsConfigured() bool {
+	return strings.TrimSpace(p.BaseURL) != "" && strings.TrimSpace(p.AuthToken) != ""
+}
+
 // Query executes req against the API and returns the raw JSON response body.
 func (p *API) Query(req *Request) ([]byte, error) {
 	if strings.TrimSpace(p.BaseURL) == "" {
