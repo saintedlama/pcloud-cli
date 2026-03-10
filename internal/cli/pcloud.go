@@ -2,19 +2,16 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 var (
-	API *pcloud.API
-
-	accessToken string
-	cfgFile     string
-	verbose     bool
+	API     *pcloud.API
+	cfgFile string
+	verbose bool
 )
 
 // RootCmd declares the main command
@@ -22,16 +19,21 @@ var RootCmd = &cobra.Command{
 	Use:   "pcloud-cli",
 	Short: "pcloud-cli is a command line interface to the pCloud API.",
 	Long: `A command line interface to interact with pCloud storage.
-More info can be found on github, http://github.com/storvik/pcloud-cli`,
+More info can be found on github, http://github.com/saintedlama/pcloud-cli`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
+		if viper.GetString("auth_token") == "" {
+			fmt.Println("No configuration found. Starting onboarding...")
+			fmt.Println()
+			onboard(cmd, args)
+			return
+		}
+		cmd.Help()
 	},
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.pcloud.json)")
-	RootCmd.PersistentFlags().StringVar(&accessToken, "token", "", "bearer token to access API, can be used when not using config file")
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output for debugging")
 
 	viper.SetDefault("author", "Petter S. Storvik <petterstorvik@gmail.com>")
@@ -44,28 +46,16 @@ func initConfig() {
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()
 
-	if cfgFile != "" { // Use custom config file if --config flag set
+	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	}
 
 	err := viper.ReadInConfig()
-	if err != nil { // No config file found, authorize of token not set
-		if accessToken == "" {
-			fmt.Println("Config file not found, run onboard or pass token with --token")
-		}
-	} else {
-		if verbose {
-			fmt.Println("Configuration file, " + viper.ConfigFileUsed() + " found")
-		}
+	if err == nil && verbose {
+		fmt.Println("Configuration file, " + viper.ConfigFileUsed() + " found")
 	}
-
-	if strings.TrimSpace(accessToken) == "" {
-		accessToken = strings.TrimSpace(viper.GetString("access_token"))
-	}
-
-	baseURL := strings.TrimSpace(viper.GetString("base_url"))
 
 	API = pcloud.NewAPI()
-	API.AccessToken = accessToken
-	API.BaseURL = baseURL
+	API.AuthToken = viper.GetString("auth_token")
+	API.BaseURL = viper.GetString("base_url")
 }

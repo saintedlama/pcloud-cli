@@ -8,8 +8,6 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/storvik/pcloud-cli/internal/helpers"
-	"github.com/storvik/pcloud-cli/internal/pcloud"
 )
 
 func init() {
@@ -20,20 +18,16 @@ var onboardCmd = &cobra.Command{
 	Use:   "onboard",
 	Short: "Set up pcloud-cli for the first time.",
 	Long: `Onboard guides you through the initial setup of pcloud-cli.
-It will ask for your preferred server region, open the pCloud authorization
-page so you can grant access, and save the resulting credentials to your
-config file.`,
-
+It will ask for your preferred server region, email, and password,
+then save the resulting session credentials to your config file.`,
 	Run: onboard,
 }
 
-type regionOption struct {
-	Name     string
-	BaseURL  string
-	TokenURL string
-}
-
 func onboard(cmd *cobra.Command, args []string) {
+	fmt.Println("Your username and password are used once to obtain a session token.")
+	fmt.Println("Only the token is saved to ~/.pcloud.json — your credentials are never stored.")
+	fmt.Println()
+
 	// Check for existing config
 	if viper.ConfigFileUsed() != "" {
 		fmt.Println("An existing configuration file was found:", viper.ConfigFileUsed())
@@ -49,61 +43,53 @@ func onboard(cmd *cobra.Command, args []string) {
 	}
 
 	// Prompt for server region
-	regions := []regionOption{
-		{Name: "US (api.pcloud.com)", BaseURL: "https://api.pcloud.com", TokenURL: "https://api.pcloud.com/oauth2_token"},
-		{Name: "EU (eapi.pcloud.com)", BaseURL: "https://eapi.pcloud.com", TokenURL: "https://eapi.pcloud.com/oauth2_token"},
-	}
-	regionNames := make([]string, len(regions))
-	for i, r := range regions {
-		regionNames[i] = r.Name
-	}
 	regionPrompt := promptui.Select{
-		Label: "Select server region",
-		Items: regionNames,
+		Label: "Server region",
+		Items: []string{"Global (US) — api.pcloud.com", "Europe (EU) — eapi.pcloud.com"},
 	}
-	idx, _, err := regionPrompt.Run()
+	regionIdx, _, err := regionPrompt.Run()
 	if err != nil {
 		fmt.Println("Region selection cancelled:", err)
 		os.Exit(1)
 	}
-	apiBaseURL := regions[idx].BaseURL
-	tokenEndpoint := regions[idx].TokenURL
+	baseURLs := []string{"https://api.pcloud.com", "https://eapi.pcloud.com"}
+	API.BaseURL = baseURLs[regionIdx]
 
-	// OAuth flow
-	authURL := pcloud.OAuthURL()
-	fmt.Println()
-	fmt.Println("Open the URL below in your browser and authorize pcloud-cli.")
-	fmt.Println("After authorization you will be shown a code — paste it here.")
-	fmt.Println(authURL)
-	helpers.Clipboard.Add(authURL)
-
-	codePrompt := promptui.Prompt{
-		Label: "Code",
-		Validate: func(input string) error {
-			if len(input) == 0 {
-				return fmt.Errorf("code cannot be empty")
-			}
-			return nil
-		},
+	// Prompt for credentials
+	usernamePrompt := promptui.Prompt{
+		Label: "Email",
 	}
-	code, err := codePrompt.Run()
+	username, err := usernamePrompt.Run()
 	if err != nil {
 		fmt.Println("Input cancelled:", err)
 		os.Exit(1)
 	}
 
-	// Exchange code for access token
-	api := pcloud.NewAPI()
-	auth, err := api.Authorize(tokenEndpoint, code)
+	passwordPrompt := promptui.Prompt{
+		Label: "Password",
+		Mask:  '*',
+	}
+	password, err := passwordPrompt.Run()
 	if err != nil {
-		fmt.Println("Authorization failed:", err)
+		fmt.Println("Input cancelled:", err)
 		os.Exit(1)
 	}
 
-	// Write config via viper
-	viper.Set("access_token", auth.AccessToken)
-	viper.Set("userid", auth.UserID)
-	viper.Set("base_url", apiBaseURL)
+	// Authenticate
+	response, _, err := API.LoginWithPassword(username, password)
+	if err != nil {
+		fmt.Println("Login failed:", err)
+		os.Exit(1)
+	}
+	if response.Auth == "" {
+		fmt.Println("Login failed: no auth token returned.")
+		os.Exit(1)
+	}
+
+	// Write config
+	viper.Set("auth_token", response.Auth)
+	viper.Set("userid", response.UserID)
+	viper.Set("base_url", API.BaseURL)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -116,6 +102,5 @@ func onboard(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	fmt.Println("Configuration written to", configPath)
-
 	fmt.Println("Onboarding complete! You can now use pcloud-cli.")
 }

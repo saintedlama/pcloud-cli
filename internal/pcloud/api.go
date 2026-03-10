@@ -14,18 +14,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/storvik/pcloud-cli/internal/pcloud/models"
-)
-
-const (
-	oauthClientID     = "wMJTDKXtja"
-	oauthClientSecret = "bCS3k9W89t0zL51qpcL2Ck3bjnF7"
+	"github.com/saintedlama/pcloud-cli/internal/pcloud/models"
 )
 
 // API is a pCloud client holding session-level configuration.
 type API struct {
-	BaseURL     string
-	AccessToken string
+	BaseURL   string
+	AuthToken string
 }
 
 // Request holds the per-call data passed to Query.
@@ -53,7 +48,14 @@ func (p *API) Query(req *Request) ([]byte, error) {
 	}
 
 	requestURL.Path += req.Endpoint
-	requestURL.RawQuery = req.Parameters.Encode()
+	params := req.Parameters
+	if params == nil {
+		params = url.Values{}
+	}
+	if p.AuthToken != "" {
+		params.Set("auth", p.AuthToken)
+	}
+	requestURL.RawQuery = params.Encode()
 
 	httpReq, err := http.NewRequest("POST", requestURL.String(), req.Body)
 	if err != nil {
@@ -61,9 +63,6 @@ func (p *API) Query(req *Request) ([]byte, error) {
 	}
 	for key, value := range req.Headers {
 		httpReq.Header.Add(key, value)
-	}
-	if p.AccessToken != "" {
-		httpReq.Header.Add("Authorization", "Bearer "+p.AccessToken)
 	}
 
 	client := &http.Client{}
@@ -114,75 +113,54 @@ func (p *API) Checksum(path string) (models.ChecksumfileResponse, error) {
 	return response, nil
 }
 
-// OAuthURL returns the browser authorization URL for the OAuth2 flow.
-func OAuthURL() string {
-	return "https://my.pcloud.com/oauth2/authorize?client_id=" + oauthClientID + "&response_type=code"
+// UserinfoResponse holds the fields returned by /userinfo when called with getauth=1.
+type UserinfoResponse struct {
+	UserID    int    `json:"userid"`
+	Email     string `json:"email"`
+	Auth      string `json:"auth"`
+	Quota     int64  `json:"quota"`
+	UsedQuota int64  `json:"usedquota"`
 }
 
-type AuthorizeResponse struct {
-	UserID      int
-	AccessToken string
-}
+// LoginWithPassword authenticates with username+password and returns the parsed
+// response, the raw JSON bytes (useful for debugging), and any error.
+// A bare API client (no Bearer token) is used deliberately: if an OAuth
+// Authorization header is present, pCloud validates the existing session instead
+// of issuing a new auth session token, leaving the `auth` field empty.
+func (p *API) LoginWithPassword(username, password string) (UserinfoResponse, []byte, error) {
+	if strings.TrimSpace(username) == "" {
+		return UserinfoResponse{}, nil, errors.New("username cannot be empty")
+	}
+	if strings.TrimSpace(password) == "" {
+		return UserinfoResponse{}, nil, errors.New("password cannot be empty")
+	}
 
-// Authorize exchanges an OAuth2 authorization code for an access token.
-// tokenEndpoint should be the full base URL for the token exchange, e.g.
-// "https://api.pcloud.com/oauth2_token" (US) or "https://eapi.pcloud.com/oauth2_token" (EU).
-func (p *API) Authorize(tokenEndpoint, code string) (AuthorizeResponse, error) {
-	parameters := url.Values{}
-	parameters.Add("client_id", oauthClientID)
-	parameters.Add("client_secret", oauthClientSecret)
-	parameters.Add("code", strings.TrimSpace(code))
+	// Use a bare client with no AccessToken so Query() does not attach an
+	// Authorization: Bearer header. pCloud only returns `auth` when the request
+	// is authenticated purely by username+password.
+	bare := &API{BaseURL: p.BaseURL}
 
-	requestURL := tokenEndpoint + "?" + parameters.Encode()
+	req := &Request{
+		Endpoint: "/userinfo",
+		Parameters: url.Values{
+			"username": {username},
+			"password": {password},
+			"getauth":  {"1"},
+			"logout":   {"1"},
+		},
+	}
 
-	req, err := http.NewRequest("POST", requestURL, nil)
+	raw, err := bare.Query(req)
 	if err != nil {
-		return AuthorizeResponse{}, err
+		return UserinfoResponse{}, nil, err
 	}
 
-	client := &http.Client{}
-	httpResp, err := client.Do(req)
-	if err != nil {
-		return AuthorizeResponse{}, err
-	}
-	defer httpResp.Body.Close()
-
-	resp, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return AuthorizeResponse{}, err
+	var response UserinfoResponse
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return UserinfoResponse{}, raw, err
 	}
 
-	var dat map[string]interface{}
-	if err := json.Unmarshal(resp, &dat); err != nil {
-		return AuthorizeResponse{}, err
-	}
-
-	if result, ok := dat["result"].(float64); ok && result != 0 {
-		errMsg, _ := dat["error"].(string)
-		if strings.TrimSpace(errMsg) == "" {
-			errMsg = "oauth2_token request failed"
-		}
-		return AuthorizeResponse{}, errors.New("Error " + strconv.FormatFloat(result, 'f', 0, 64) + ": " + errMsg)
-	}
-
-	var userID int
-	if uid, ok := dat["uid"].(float64); ok {
-		userID = int(uid)
-	} else if uid, ok := dat["userid"].(float64); ok {
-		userID = int(uid)
-	} else {
-		return AuthorizeResponse{}, errors.New("oauth2_token response missing uid")
-	}
-
-	accessToken, ok := dat["access_token"].(string)
-	if !ok || strings.TrimSpace(accessToken) == "" {
-		return AuthorizeResponse{}, errors.New("oauth2_token response missing access_token")
-	}
-
-	return AuthorizeResponse{
-		UserID:      userID,
-		AccessToken: accessToken,
-	}, nil
+	return response, raw, nil
 }
 
 func (p *API) GetFileLink(path string) (models.GetfileResponse, error) {
