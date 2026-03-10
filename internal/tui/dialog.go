@@ -37,12 +37,21 @@ func (m dialogModel) Init() tea.Cmd {
 
 func (m dialogModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case msgs.ShowDialogMsg:
+		// Replace the inner dialog (e.g. action picker -> sub-dialog).
+		m.dialog = msg.Content
+		return m, m.dialog.Init()
 	case msgs.CloseDialogMsg:
+		// Forward results that need parent handling (e.g. folder refresh).
+		if msg.Result != nil {
+			var cmd tea.Cmd
+			m.main, cmd = m.main.Update(msg)
+			return m.main, cmd
+		}
 		return m.main, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Also forward to main so it stays in sync.
 		m.main, _ = m.main.Update(msg)
 		return m, nil
 	case tea.KeyMsg:

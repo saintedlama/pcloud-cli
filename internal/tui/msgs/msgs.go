@@ -34,6 +34,12 @@ type CloseDialogMsg struct {
 	Result any
 }
 
+// NavigateFolderResult is placed in CloseDialogMsg.Result to request that the
+// filebrowser navigate into the given folder path after the dialog closes.
+type NavigateFolderResult struct {
+	Path string
+}
+
 // ErrMsg is sent when an API call fails.
 type ErrMsg struct {
 	Err error

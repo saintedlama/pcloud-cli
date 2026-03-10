@@ -61,6 +61,20 @@ func (m *Model) SetSize(w, h int) {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case msgs.CloseDialogMsg:
+		// Navigate into a folder (from the actions dialog "Open" item).
+		if nav, ok := msg.Result.(msgs.NavigateFolderResult); ok {
+			m.history = append(m.history, m.path)
+			m.loading = true
+			return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, nav.Path))
+		}
+		// A mutating action finished — refresh the current folder.
+		if msg.Result != nil {
+			m.loading = true
+			return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, m.path))
+		}
+		return m, nil
+
 	case msgs.FolderLoadedMsg:
 		m.loading = false
 		m.err = nil
@@ -103,11 +117,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					return m.navigateUp()
 				}
 				if sel.entry.IsFolder {
-					return m.navigateInto(sel.entry.Path)
+					// 'right' navigates directly; 'enter' opens the actions menu.
+					if msg.String() == "right" {
+						return m.navigateInto(sel.entry.Path)
+					}
+					dialog := NewActionsDialog(m.api, sel.entry)
+					return m, func() tea.Msg {
+						return msgs.ShowDialogMsg{Content: dialog}
+					}
 				}
-				// File selected with 'enter' -> request download dialog.
+				// File selected with 'enter' -> show action picker.
 				if msg.String() == "enter" {
-					dialog := NewDownloadDialog(m.api, sel.entry)
+					dialog := NewActionsDialog(m.api, sel.entry)
 					return m, func() tea.Msg {
 						return msgs.ShowDialogMsg{Content: dialog}
 					}

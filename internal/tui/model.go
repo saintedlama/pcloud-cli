@@ -36,6 +36,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		dm := NewDialogModel(msg.Content, m, m.width, m.height)
 		return dm, dm.Init()
 
+	case msgs.CloseDialogMsg:
+		// A dialog closed with a result — refresh the current folder.
+		var cmd tea.Cmd
+		m.browser, cmd = m.browser.Update(msg)
+		return m, cmd
+
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "q" {
 			return m, tea.Quit
