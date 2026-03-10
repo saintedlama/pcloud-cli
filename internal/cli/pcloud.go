@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/fatih/color"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -46,27 +46,25 @@ More info can be found on github, http://github.com/saintedlama/pcloud-cli`,
 
 		usedPct := float64(info.UsedQuota) / float64(info.Quota) * 100
 
-		label := color.New(color.FgHiBlack)
-		value := color.New(color.FgCyan, color.Bold)
+		labelSt := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+		valueSt := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 
-		var storageColor *color.Color
+		var storageSt lipgloss.Style
 		switch {
 		case usedPct >= 90:
-			storageColor = color.New(color.FgRed, color.Bold)
+			storageSt = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
 		case usedPct >= 70:
-			storageColor = color.New(color.FgYellow, color.Bold)
+			storageSt = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
 		default:
-			storageColor = color.New(color.FgGreen, color.Bold)
+			storageSt = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 		}
 
-		label.Print("User Information\n")
-		label.Print("Account:  ")
-		value.Println(info.Email)
-		label.Print("Plan:     ")
-		value.Println(planLabel)
-		label.Print("Storage:  ")
-		storageColor.Printf("%s / %s", formatBytes(info.UsedQuota), formatBytes(info.Quota))
-		color.New(color.FgHiBlack).Printf(" (%.1f%% used)\n", usedPct)
+		fmt.Println(labelSt.Render("User Information"))
+		fmt.Println(labelSt.Render("Account:  ") + valueSt.Render(info.Email))
+		fmt.Println(labelSt.Render("Plan:     ") + valueSt.Render(planLabel))
+		fmt.Println(labelSt.Render("Storage:  ") +
+			storageSt.Render(fmt.Sprintf("%s / %s", formatBytes(info.UsedQuota), formatBytes(info.Quota))) +
+			labelSt.Render(fmt.Sprintf(" (%.1f%% used)", usedPct)))
 		fmt.Println()
 		cmd.Help()
 	},

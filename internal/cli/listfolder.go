@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fatih/color"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rodaine/table"
 	"github.com/spf13/cobra"
 )
@@ -62,8 +62,12 @@ func listfolder(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	headerFmt := color.New(color.FgHiYellow, color.Bold).SprintfFunc()
-	fileFmt := color.New(color.FgHiCyan).SprintfFunc()
+	headerFmt := func(format string, a ...interface{}) string {
+		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")).Render(fmt.Sprintf(format, a...))
+	}
+	fileFmt := func(format string, a ...interface{}) string {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Render(fmt.Sprintf(format, a...))
+	}
 
 	tbl := table.New("Name", "Modified", "ID")
 	tbl.WithHeaderFormatter(headerFmt)
@@ -84,11 +88,11 @@ func listfolder(cmd *cobra.Command, args []string) {
 	}
 	tbl.Print()
 
-	dimFmt := color.New(color.FgHiBlack).SprintfFunc()
-	boldFmt := color.New(color.Bold).SprintfFunc()
+	dimSt := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	boldSt := lipgloss.NewStyle().Bold(true)
 	fmt.Printf("\n%s %s,  %s %s,  %s %s\n",
-		dimFmt("directories:"), boldFmt("%d", dirCount),
-		dimFmt("files:"), boldFmt("%d", fileCount),
-		dimFmt("total:"), boldFmt("%d", dirCount+fileCount),
+		dimSt.Render("directories:"), boldSt.Render(fmt.Sprintf("%d", dirCount)),
+		dimSt.Render("files:"), boldSt.Render(fmt.Sprintf("%d", fileCount)),
+		dimSt.Render("total:"), boldSt.Render(fmt.Sprintf("%d", dirCount+fileCount)),
 	)
 }

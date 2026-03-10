@@ -16,6 +16,7 @@ type ListfolderResponse struct {
 			Path           string `json:"path"`
 			Name           string `json:"name"`
 			Modified       string `json:"modified"`
+			Size           int64  `json:"size"`
 			IsMine         bool   `json:"ismine"`
 			ID             string `json:"id"`
 			IsShared       bool   `json:"isshared"`
