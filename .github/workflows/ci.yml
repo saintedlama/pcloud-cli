@@ -25,7 +25,7 @@ jobs:
 
       - name: Lint (gofmt)
         run: |
-          unformatted=$(gofmt -l $(find . -type f -name '*.go' -not -path './vendor/*'))
+          unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
             echo "The following files are not gofmt-formatted:"
             echo "$unformatted"
