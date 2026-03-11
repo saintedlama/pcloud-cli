@@ -15,6 +15,7 @@ type action struct {
 }
 
 var fileActions = []action{
+	{label: "Preview", key: "preview"},
 	{label: "Download", key: "download"},
 	{label: "Rename", key: "rename"},
 	{label: "Move", key: "move"},
@@ -35,11 +36,15 @@ type ActionsDialog struct {
 	entry   msgs.Entry
 	actions []action
 	cursor  int
+	width   int
+	height  int
 }
 
 // NewActionsDialog creates an action picker for the given entry.
 // Folder-specific actions are shown when entry.IsFolder is true.
-func NewActionsDialog(api *pcloud.API, entry msgs.Entry) ActionsDialog {
+// width and height are the current terminal dimensions, passed through to
+// sub-dialogs (e.g. the preview dialog) that need them at construction time.
+func NewActionsDialog(api *pcloud.API, entry msgs.Entry, width, height int) ActionsDialog {
 	actions := fileActions
 	if entry.IsFolder {
 		actions = folderActions
@@ -48,6 +53,8 @@ func NewActionsDialog(api *pcloud.API, entry msgs.Entry) ActionsDialog {
 		api:     api,
 		entry:   entry,
 		actions: actions,
+		width:   width,
+		height:  height,
 	}
 }
 
@@ -69,6 +76,11 @@ func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			selected := m.actions[m.cursor]
 			switch selected.key {
+			case "preview":
+				dialog := NewPreviewDialog(m.api, m.entry, m.width, m.height)
+				return m, func() tea.Msg {
+					return msgs.ShowDialogMsg{Content: dialog}
+				}
 			case "open":
 				path := m.entry.Path
 				return m, func() tea.Msg {

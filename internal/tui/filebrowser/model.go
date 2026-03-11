@@ -121,14 +121,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					if msg.String() == "right" {
 						return m.navigateInto(sel.entry.Path)
 					}
-					dialog := NewActionsDialog(m.api, sel.entry)
+					dialog := NewActionsDialog(m.api, sel.entry, m.width, m.height)
 					return m, func() tea.Msg {
 						return msgs.ShowDialogMsg{Content: dialog}
 					}
 				}
 				// File selected with 'enter' -> show action picker.
 				if msg.String() == "enter" {
-					dialog := NewActionsDialog(m.api, sel.entry)
+					dialog := NewActionsDialog(m.api, sel.entry, m.width, m.height)
+					return m, func() tea.Msg {
+						return msgs.ShowDialogMsg{Content: dialog}
+					}
+				}
+			}
+
+		case "p":
+			if sel, ok := m.list.SelectedItem().(item); ok {
+				if !sel.entry.IsFolder && sel.entry.Name != ".." {
+					dialog := NewPreviewDialog(m.api, sel.entry, m.width, m.height)
 					return m, func() tea.Msg {
 						return msgs.ShowDialogMsg{Content: dialog}
 					}
@@ -167,7 +177,7 @@ func (m Model) View() string {
 	if m.statusMsg != "" {
 		footer = successStyle.Render(m.statusMsg)
 	} else {
-		footer = helpStyle.Render("up/down navigate  |  right/enter open folder  |  enter download file  |  left/backspace go up  |  / filter  |  q quit")
+		footer = helpStyle.Render("up/down navigate  |  right/enter open folder  |  enter download file  |  p preview  |  left/backspace go up  |  / filter  |  q quit")
 	}
 	return header + m.list.View() + "\n" + footer
 }

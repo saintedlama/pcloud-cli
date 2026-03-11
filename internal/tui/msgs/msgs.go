@@ -40,6 +40,13 @@ type NavigateFolderResult struct {
 	Path string
 }
 
+// PreviewReadyMsg is sent when a file preview has been rendered and is ready
+// for display. Content contains the ANSI-formatted string.
+type PreviewReadyMsg struct {
+	Name    string
+	Content string
+}
+
 // ErrMsg is sent when an API call fails.
 type ErrMsg struct {
 	Err error
