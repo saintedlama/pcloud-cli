@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/rodaine/table"
 	"github.com/spf13/cobra"
 )

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
@@ -31,7 +31,7 @@ type DeleteDialog struct {
 func NewDeleteDialog(api *pcloud.API, entry msgs.Entry) DeleteDialog {
 	ti := textinput.New()
 	ti.CharLimit = 1
-	ti.Width = 5
+	ti.SetWidth(5)
 	ti.Placeholder = "N"
 
 	return DeleteDialog{
@@ -50,7 +50,7 @@ func (m DeleteDialog) Init() tea.Cmd {
 
 func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == deleteDone || m.err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
 				return msgs.CloseDialogMsg{Result: "deleted"}
 			}
@@ -70,7 +70,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch kMsg.String() {
 		case "enter":
 			val := strings.TrimSpace(m.input.Value())
@@ -89,7 +89,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m DeleteDialog) View() string {
+func (m DeleteDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += errorStyle.Render("Delete File")
 	s += "\n\n"
@@ -103,26 +103,26 @@ func (m DeleteDialog) View() string {
 		s += successStyle.Render("  Deleted successfully")
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.err != nil {
 		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.state == deleteRunning {
 		s += "  Deleting..."
-		return s
+		return tea.NewView(s)
 	}
 
 	s += errorStyle.Render("  This action cannot be undone!") + "\n\n"
 	s += "  Type Y to confirm: " + m.input.View()
 	s += "\n\n"
 	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
-	return s
+	return tea.NewView(s)
 }
 
 func deleteFile(api *pcloud.API, entry msgs.Entry) tea.Cmd {

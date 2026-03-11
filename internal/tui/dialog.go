@@ -1,8 +1,8 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
 
@@ -54,7 +54,7 @@ func (m dialogModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.main, _ = m.main.Update(msg)
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "esc" {
 			return m.main, nil
 		}
@@ -65,9 +65,11 @@ func (m dialogModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m dialogModel) View() string {
-	bg := m.main.View()
-	dialogContent := dialogBoxStyle.Render(m.dialog.View())
+func (m dialogModel) View() tea.View {
+	bg := m.main.View().Content
+	dialogContent := dialogBoxStyle.Render(m.dialog.View().Content)
 
-	return OverlayCenter(m.width, m.height, dialogContent, bg, WithDim())
+	v := tea.NewView(OverlayCenter(m.width, m.height, dialogContent, bg, WithDim()))
+	v.AltScreen = true
+	return v
 }

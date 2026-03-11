@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
@@ -31,7 +31,7 @@ type MoveDialog struct {
 func NewMoveDialog(api *pcloud.API, entry msgs.Entry) MoveDialog {
 	ti := textinput.New()
 	ti.CharLimit = 500
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Placeholder = "/destination/folder"
 	ti.SetValue(path.Dir(entry.Path))
 
@@ -51,7 +51,7 @@ func (m MoveDialog) Init() tea.Cmd {
 
 func (m MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == moveDone || m.err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
 				return msgs.CloseDialogMsg{Result: "moved"}
 			}
@@ -71,7 +71,7 @@ func (m MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if kMsg.String() == "enter" {
 			destFolder := m.input.Value()
 			if destFolder == "" {
@@ -92,7 +92,7 @@ func (m MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m MoveDialog) View() string {
+func (m MoveDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Move File")
 	s += "\n\n"
@@ -106,25 +106,25 @@ func (m MoveDialog) View() string {
 		s += successStyle.Render("  Moved successfully")
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.err != nil {
 		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.state == moveRunning {
 		s += "  Moving..."
-		return s
+		return tea.NewView(s)
 	}
 
 	s += "  Move to: " + m.input.View()
 	s += "\n\n"
 	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
-	return s
+	return tea.NewView(s)
 }
 
 func moveFile(api *pcloud.API, entry msgs.Entry, toPath string) tea.Cmd {

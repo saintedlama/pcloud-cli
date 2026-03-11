@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/helpers"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
@@ -33,7 +33,7 @@ type DownloadDialog struct {
 func NewDownloadDialog(api *pcloud.API, entry msgs.Entry) DownloadDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Placeholder = "filename"
 	ti.SetValue(entry.Name)
 
@@ -55,7 +55,7 @@ func (m DownloadDialog) Init() tea.Cmd {
 func (m DownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.done {
 		// Any key after "done" dismisses the dialog.
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		}
 	}
@@ -79,7 +79,7 @@ func (m DownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch kMsg.String() {
 		case "enter":
 			localPath := m.input.Value()
@@ -97,7 +97,7 @@ func (m DownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m DownloadDialog) View() string {
+func (m DownloadDialog) View() tea.View {
 	var sb strings.Builder
 	sb.WriteString(titleStyle.Render("pCloud") + "  ")
 	sb.WriteString(dialogTitleStyle.Render("Download File"))
@@ -110,7 +110,7 @@ func (m DownloadDialog) View() string {
 		sb.WriteString(successStyle.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
 		sb.WriteString("\n\n")
 		sb.WriteString(helpStyle.Render("  Press any key to continue"))
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
@@ -119,21 +119,21 @@ func (m DownloadDialog) View() string {
 		sb.WriteString(helpStyle.Render("  Press any key to continue"))
 		// Allow dismiss on next keypress.
 		m.done = true
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	if m.downloading {
 		sb.WriteString("  ")
 		sb.WriteString(m.spinner.View())
 		sb.WriteString(fmt.Sprintf("  Downloading %s…", m.entry.Name))
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	sb.WriteString("  Save as:  ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
 	sb.WriteString(helpStyle.Render("  Enter to confirm  |  Esc to cancel"))
-	return sb.String()
+	return tea.NewView(sb.String())
 }
 
 // downloadFile returns a command that fetches a download link and saves the file locally.
@@ -170,7 +170,7 @@ type FolderDownloadDialog struct {
 func NewFolderDownloadDialog(api *pcloud.API, entry msgs.Entry) FolderDownloadDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Placeholder = "destination directory"
 	ti.SetValue(".")
 
@@ -191,7 +191,7 @@ func (m FolderDownloadDialog) Init() tea.Cmd {
 
 func (m FolderDownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.done || m.err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		}
 	}
@@ -215,7 +215,7 @@ func (m FolderDownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if kMsg.String() == "enter" {
 			destDir := m.input.Value()
 			if destDir == "" {
@@ -232,7 +232,7 @@ func (m FolderDownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m FolderDownloadDialog) View() string {
+func (m FolderDownloadDialog) View() tea.View {
 	var sb strings.Builder
 	sb.WriteString(titleStyle.Render("pCloud") + "  ")
 	sb.WriteString(dialogTitleStyle.Render("Download Folder"))
@@ -245,28 +245,28 @@ func (m FolderDownloadDialog) View() string {
 		sb.WriteString(successStyle.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
 		sb.WriteString("\n\n")
 		sb.WriteString(helpStyle.Render("  Press any key to continue"))
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
 		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
 		sb.WriteString(helpStyle.Render("  Press any key to continue"))
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	if m.downloading {
 		sb.WriteString("  ")
 		sb.WriteString(m.spinner.View())
 		sb.WriteString(fmt.Sprintf("  Downloading %s…", m.entry.Name))
-		return sb.String()
+		return tea.NewView(sb.String())
 	}
 
 	sb.WriteString("  Save to:     ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
 	sb.WriteString(helpStyle.Render("  Enter to confirm  |  Esc to cancel"))
-	return sb.String()
+	return tea.NewView(sb.String())
 }
 
 // downloadFolder fetches the folder as a zip via getziplink and extracts it locally.

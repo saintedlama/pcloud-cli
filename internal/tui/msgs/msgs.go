@@ -1,6 +1,6 @@
 package msgs
 
-import tea "github.com/charmbracelet/bubbletea"
+import tea "charm.land/bubbletea/v2"
 
 // FolderLoadedMsg is sent when a folder listing has been fetched from the API.
 type FolderLoadedMsg struct {

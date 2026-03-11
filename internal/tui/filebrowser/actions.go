@@ -3,8 +3,8 @@ package filebrowser
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
@@ -56,7 +56,7 @@ func (m ActionsDialog) Init() tea.Cmd {
 }
 
 func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch kMsg.String() {
 		case "up", "k":
 			if m.cursor > 0 {
@@ -120,7 +120,7 @@ var (
 				Background(lipgloss.Color("9"))
 )
 
-func (m ActionsDialog) View() string {
+func (m ActionsDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Actions")
 	s += "\n\n"
@@ -146,5 +146,5 @@ func (m ActionsDialog) View() string {
 
 	s += "\n"
 	s += helpStyle.Render("  up/down select  |  enter confirm  |  esc cancel")
-	return s
+	return tea.NewView(s)
 }

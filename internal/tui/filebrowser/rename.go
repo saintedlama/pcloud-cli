@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
@@ -31,7 +31,7 @@ type RenameDialog struct {
 func NewRenameDialog(api *pcloud.API, entry msgs.Entry) RenameDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Placeholder = "new name"
 	ti.SetValue(entry.Name)
 
@@ -51,7 +51,7 @@ func (m RenameDialog) Init() tea.Cmd {
 
 func (m RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == renameDone || m.err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
 				return msgs.CloseDialogMsg{Result: "renamed"}
 			}
@@ -71,7 +71,7 @@ func (m RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if kMsg, ok := msg.(tea.KeyMsg); ok {
+	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if kMsg.String() == "enter" {
 			newName := m.input.Value()
 			if newName == "" || newName == m.entry.Name {
@@ -90,7 +90,7 @@ func (m RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m RenameDialog) View() string {
+func (m RenameDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Rename File")
 	s += "\n\n"
@@ -104,25 +104,25 @@ func (m RenameDialog) View() string {
 		s += successStyle.Render("  Renamed successfully")
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.err != nil {
 		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
 		s += helpStyle.Render("  Press any key to continue")
-		return s
+		return tea.NewView(s)
 	}
 
 	if m.state == renameRunning {
 		s += "  Renaming..."
-		return s
+		return tea.NewView(s)
 	}
 
 	s += "  New name: " + m.input.View()
 	s += "\n\n"
 	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
-	return s
+	return tea.NewView(s)
 }
 
 func renameFile(api *pcloud.API, entry msgs.Entry, toPath string) tea.Cmd {
