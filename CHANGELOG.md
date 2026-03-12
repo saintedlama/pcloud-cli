@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0](https://github.com/saintedlama/pcloud-cli/compare/v1.1.0...v1.2.0) (2026-03-12)
+
+
+### Features
+
+* add sync mode "up" and reflect changes in the tui ([1157731](https://github.com/saintedlama/pcloud-cli/commit/1157731278fa490e715bcdd360825316f3d11193))
+* add up mode for sync ([77b1a27](https://github.com/saintedlama/pcloud-cli/commit/77b1a27f0c667c853c0abd84ebea96a74f7f42aa))
+* manage sync daemons via tui ([b55f793](https://github.com/saintedlama/pcloud-cli/commit/b55f7931c26c298e248af64e7ba992837d1e46f2))
+
 ## [1.1.0](https://github.com/saintedlama/pcloud-cli/compare/v1.0.0...v1.1.0) (2026-03-12)
 
 
