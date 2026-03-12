@@ -18,6 +18,7 @@ import (
 )
 
 var syncInterval time.Duration
+var syncDryRun bool
 
 // SyncCmd is the top-level "sync" command that performs a single sync pass.
 var SyncCmd = &cobra.Command{
@@ -53,7 +54,10 @@ enable and start it with systemctl --user.
 
 The local-dir path is resolved to an absolute path before being embedded in
 the unit file, so it works regardless of where the service is started from.
-Use --interval to set the polling frequency written into the unit.`,
+Use --interval to set the polling frequency written into the unit.
+Use --dry-run to print the unit file and describe what would be done without
+making any changes.`,
+
 	Args: cobra.RangeArgs(1, 2),
 	Run:  runSyncSystemd,
 }
@@ -64,6 +68,8 @@ func init() {
 	SyncCmd.AddCommand(syncSystemdCmd)
 	SyncCmd.PersistentFlags().DurationVar(&syncInterval, "interval", 60*time.Second,
 		"polling interval used by the daemon (e.g. 30s, 5m)")
+	syncSystemdCmd.Flags().BoolVar(&syncDryRun, "dry-run", false,
+		"print the unit file and describe what would be done without making any changes")
 }
 
 // parseSyncArgs extracts the pCloud path and local directory from args,
@@ -176,10 +182,6 @@ func runSyncSystemd(cmd *cobra.Command, args []string) {
 	unitName := "pcloud-sync-" + sanitized + ".service"
 
 	unitDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
-	if err := os.MkdirAll(unitDir, 0o755); err != nil {
-		fmt.Fprintln(os.Stderr, "could not create systemd user directory:", err)
-		os.Exit(1)
-	}
 	unitPath := filepath.Join(unitDir, unitName)
 
 	tmpl := template.Must(template.New("unit").Funcs(template.FuncMap{
@@ -192,17 +194,40 @@ func runSyncSystemd(cmd *cobra.Command, args []string) {
 		},
 	}).Parse(unitTemplate))
 
+	vars := unitVars{
+		CloudPath: cloudPath,
+		LocalDir:  absLocal,
+		ExecPath:  execPath,
+		Interval:  syncInterval.String(),
+	}
+
+	if syncDryRun {
+		fmt.Print("=== Dry run — no files will be written and no commands will be run ===\n\n")
+		fmt.Printf("Unit file path : %s\n\n", unitPath)
+		fmt.Println("--- unit file contents ---")
+		if err := tmpl.Execute(os.Stdout, vars); err != nil {
+			fmt.Fprintln(os.Stderr, "could not render unit template:", err)
+			os.Exit(1)
+		}
+		fmt.Print("--- end unit file ---\n\n")
+		fmt.Println("Steps that would be executed:")
+		fmt.Printf("  1. Write unit file to %s\n", unitPath)
+		fmt.Println("  2. systemctl --user daemon-reload")
+		fmt.Printf("  3. systemctl --user enable --now %s\n", unitName)
+		return
+	}
+
+	if err := os.MkdirAll(unitDir, 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, "could not create systemd user directory:", err)
+		os.Exit(1)
+	}
+
 	f, err := os.Create(unitPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "could not write unit file:", err)
 		os.Exit(1)
 	}
-	if err := tmpl.Execute(f, unitVars{
-		CloudPath: cloudPath,
-		LocalDir:  absLocal,
-		ExecPath:  execPath,
-		Interval:  syncInterval.String(),
-	}); err != nil {
+	if err := tmpl.Execute(f, vars); err != nil {
 		f.Close()
 		fmt.Fprintln(os.Stderr, "could not render unit template:", err)
 		os.Exit(1)
