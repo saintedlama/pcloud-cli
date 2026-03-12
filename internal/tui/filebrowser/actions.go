@@ -28,6 +28,7 @@ var folderActions = []action{
 	{label: "Rename", key: "rename"},
 	{label: "Move", key: "move"},
 	{label: "Delete", key: "rm"},
+	{label: "Sync", key: "sync"},
 }
 
 // ActionsDialog lets the user pick an action to perform on a file or folder.
@@ -85,6 +86,11 @@ func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				path := m.entry.Path
 				return m, func() tea.Msg {
 					return msgs.CloseDialogMsg{Result: msgs.NavigateFolderResult{Path: path}}
+				}
+			case "sync":
+				dialog := NewSyncDialog(m.entry.Path)
+				return m, func() tea.Msg {
+					return msgs.ShowDialogMsg{Content: dialog}
 				}
 			case "download":
 				if m.entry.IsFolder {
