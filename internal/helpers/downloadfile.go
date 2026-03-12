@@ -15,10 +15,6 @@ func DownloadFile(url, filepath string) error {
 	}
 	defer out.Close()
 
-	if err != nil {
-		return errors.New("Download file error: " + err.Error())
-	}
-
 	request, err := http.NewRequest("GET", url, nil)
 	client := &http.Client{}
 	resp, err := client.Do(request)
