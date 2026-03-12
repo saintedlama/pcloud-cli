@@ -72,7 +72,7 @@ func init() {
 	SyncCmd.AddCommand(syncSystemdCmd)
 	SyncCmd.PersistentFlags().DurationVar(&syncInterval, "interval", 60*time.Second,
 		"polling interval used by the daemon (e.g. 30s, 5m)")
-	SyncCmd.Flags().StringVar(&syncMode, "mode", "down",
+	SyncCmd.PersistentFlags().StringVar(&syncMode, "mode", "down",
 		`sync direction: "down" (pCloud → local) or "up" (local → pCloud)`)
 	syncSystemdCmd.Flags().BoolVar(&syncDryRun, "dry-run", false,
 		"print the unit file and describe what would be done without making any changes")
@@ -161,12 +161,29 @@ func runSyncDaemon(cmd *cobra.Command, args []string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	fmt.Printf("Starting sync daemon: %s → %s (interval: %s)\n",
-		cloudPath, absLocal, syncInterval)
-
-	syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
-	if err := syncer.Watch(ctx, syncInterval); err != nil {
-		fmt.Fprintln(os.Stderr, "daemon error:", err)
+	switch syncMode {
+	case "down":
+		fmt.Printf("Starting sync daemon (down): %s → %s (interval: %s)\n",
+			cloudPath, absLocal, syncInterval)
+		syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
+		if err := syncer.Watch(ctx, syncInterval); err != nil {
+			fmt.Fprintln(os.Stderr, "daemon error:", err)
+			os.Exit(1)
+		}
+	case "up":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "sync daemon --mode up requires both <pcloud-path> and <local-dir>")
+			os.Exit(1)
+		}
+		fmt.Printf("Starting sync daemon (up): %s → %s (interval: %s)\n",
+			absLocal, cloudPath, syncInterval)
+		uploader := gosync.NewUploader(API, absLocal, cloudPath, os.Stdout)
+		if err := uploader.Watch(ctx, syncInterval); err != nil {
+			fmt.Fprintln(os.Stderr, "daemon error:", err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\" or \"up\"\n", syncMode)
 		os.Exit(1)
 	}
 }
@@ -180,7 +197,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}}
+ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}} --mode {{.Mode}}
 Restart=on-failure
 RestartSec=10
 
@@ -193,6 +210,7 @@ type unitVars struct {
 	LocalDir  string
 	ExecPath  string
 	Interval  string
+	Mode      string
 }
 
 func runSyncSystemd(cmd *cobra.Command, args []string) {
@@ -237,6 +255,7 @@ func runSyncSystemd(cmd *cobra.Command, args []string) {
 		LocalDir:  absLocal,
 		ExecPath:  execPath,
 		Interval:  syncInterval.String(),
+		Mode:      syncMode,
 	}
 
 	if syncDryRun {

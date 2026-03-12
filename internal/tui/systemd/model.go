@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ type Unit struct {
 	Name         string // full unit name, e.g. "pcloud-sync-Music.service"
 	ActiveState  string // "active", "inactive", "failed", …
 	EnabledState string // "enabled", "disabled", "static", …
+	Mode         string // sync direction: "down" or "up"
 }
 
 // ShortName strips the common prefix and suffix for compact display.
@@ -97,6 +99,15 @@ func enabledStateStyle(state string) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("244")) // grey
 	default:
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	}
+}
+
+func modeStyle(mode string) lipgloss.Style {
+	switch mode {
+	case "up":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("213")) // magenta
+	default: // "down"
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("39")) // blue
 	}
 }
 
@@ -235,18 +246,19 @@ func (m Model) View() string {
 
 	var sb strings.Builder
 	sb.WriteString(header)
-	sb.WriteString(colHeaderStyle.Render(fmt.Sprintf("  %-38s  %-10s  %-10s", "Service", "Active", "Enabled")))
+	sb.WriteString(colHeaderStyle.Render(fmt.Sprintf("  %-36s  %-6s  %-10s  %-10s", "Service", "Mode", "Active", "Enabled")))
 	sb.WriteString("\n")
 	sb.WriteString(strings.Repeat("─", m.width))
 	sb.WriteString("\n")
 
 	for i, u := range m.units {
-		name := fmt.Sprintf("%-38s", u.ShortName())
+		name := fmt.Sprintf("%-36s", u.ShortName())
+		modeStr := modeStyle(u.Mode).Render(fmt.Sprintf("%-6s", u.Mode))
 		activeStr := activeStateStyle(u.ActiveState).Render(fmt.Sprintf("%-10s", u.ActiveState))
 		enabledStr := enabledStateStyle(u.EnabledState).Render(fmt.Sprintf("%-10s", u.EnabledState))
-		row := fmt.Sprintf("  %s  %s  %s", name, activeStr, enabledStr)
+		row := fmt.Sprintf("  %s  %s  %s  %s", name, modeStr, activeStr, enabledStr)
 		if i == m.cursor {
-			sb.WriteString(selectedRowStyle.Render(fmt.Sprintf("  %-38s  %-10s  %-10s", u.ShortName(), u.ActiveState, u.EnabledState)))
+			sb.WriteString(selectedRowStyle.Render(fmt.Sprintf("  %-36s  %-6s  %-10s  %-10s", u.ShortName(), u.Mode, u.ActiveState, u.EnabledState)))
 		} else {
 			sb.WriteString(row)
 		}
@@ -304,6 +316,7 @@ func loadUnits() tea.Msg {
 			Name:         name,
 			ActiveState:  active,
 			EnabledState: enabled,
+			Mode:         parseUnitMode(name),
 		})
 	}
 	sort.Slice(units, func(i, j int) bool {
@@ -325,4 +338,28 @@ func runSystemctlOp(op, name string) tea.Msg {
 		}
 	}
 	return unitOpDoneMsg{msg: fmt.Sprintf("%s %s: OK", op, name)}
+}
+
+// parseUnitMode reads the systemd unit file for name and returns the sync mode
+// by looking for --mode in the ExecStart line. Defaults to "down".
+func parseUnitMode(name string) string {
+	unitPath := fmt.Sprintf("%s/.config/systemd/user/%s", os.Getenv("HOME"), name)
+	data, err := os.ReadFile(unitPath) //nolint:gosec // path built from HOME + known unit name
+	if err != nil {
+		return "down"
+	}
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	for sc.Scan() {
+		line := sc.Text()
+		if !strings.HasPrefix(strings.TrimSpace(line), "ExecStart=") {
+			continue
+		}
+		fields := strings.Fields(line)
+		for i, f := range fields {
+			if f == "--mode" && i+1 < len(fields) {
+				return fields[i+1]
+			}
+		}
+	}
+	return "down"
 }

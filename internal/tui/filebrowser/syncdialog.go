@@ -157,7 +157,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}}
+ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}} --mode down
 Restart=on-failure
 RestartSec=10
 

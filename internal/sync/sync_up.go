@@ -142,6 +142,37 @@ func (u *Uploader) Run(ctx context.Context) (RunResult, error) {
 	return res, nil
 }
 
+// Watch calls Run repeatedly, sleeping interval between passes, until ctx is
+// cancelled. It returns nil on clean shutdown.
+func (u *Uploader) Watch(ctx context.Context, interval time.Duration) error {
+	for {
+		start := time.Now()
+		fmt.Fprintf(u.log, "\n[%s] === sync start  %s -> %s ===\n",
+			start.Format(time.RFC3339), u.localRoot, u.cloudRoot)
+
+		res, err := u.Run(ctx)
+		if ctx.Err() != nil {
+			return nil
+		} else if err != nil {
+			fmt.Fprintf(u.log, "[%s] sync error: %v\n",
+				time.Now().Format(time.RFC3339), err)
+		} else {
+			fmt.Fprintf(u.log,
+				"[%s] sync done   %d uploaded, %d deleted, %d up to date  (%.1fs)\n",
+				time.Now().Format(time.RFC3339),
+				res.Downloaded, res.Deleted, res.Total-res.Downloaded-res.Warnings,
+				time.Since(start).Seconds())
+		}
+
+		fmt.Fprintf(u.log, "Next sync in %s\n", interval)
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(interval):
+		}
+	}
+}
+
 // toCloudDir converts a local-relative file path to the absolute pCloud
 // directory that should contain it.
 // e.g. localRel="Rock/song.mp3" → "/CloudMusic/Rock"
