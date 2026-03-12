@@ -20,11 +20,10 @@ import (
 )
 
 var (
-	counterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))  // yellow
-	indexStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("220")) // bright yellow
-	totalStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("130")) // orange-brown
-	sizeStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("36"))  // cyan
-	speedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("32"))  // green
+	indexStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("220")) // bright yellow
+	totalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("130")) // orange-brown
+	sizeStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("36"))  // cyan
+	speedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("32"))  // green
 )
 
 // Syncer mirrors a pCloud directory tree to a local directory.
