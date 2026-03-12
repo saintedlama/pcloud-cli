@@ -8,7 +8,8 @@ Guidance for coding agents working in this repository.
 - Language: Go (modules)
 - Entry point: `cmd/pcloud-cli/main.go`
 - CLI package: `internal/cli`
-- Internal packages: `internal/config`, `internal/helpers`, `internal/pcloud/models`
+- Internal packages: `internal/cli`, `internal/helpers`, `internal/pcloud`, `internal/pcloud/models`, `internal/sync`, `internal/tui`
+- There is **no** `internal/config` package — configuration is loaded via viper directly in `internal/cli/pcloud.go`
 
 ## Core commands
 
@@ -27,6 +28,7 @@ The workflow in `.github/workflows/ci.yml` enforces:
 1. `gofmt` formatting
 2. `go vet ./...`
 3. `go build ./...`
+4. `go test ./...` (with `gotestfmt` for output formatting and a coverage report in the job summary)
 
 Any change should pass these checks locally before handoff.
 
@@ -170,3 +172,15 @@ The `base_url` **must** match the region where the user's account is registered.
 - Never use section comments like `// ---- normalizePath ----` or `// ---- end normalizePath ----` in code. This is an antipattern of code monkeys not knowing that files, functions and packages exist to structure code.
 
 - Semantic Commits: Use prefixes 'chore:', 'fix:', 'feat:' for commit messages to indicate the type of change. For example, 'fix: correct file upload logic' or 'feat: add folder rename command'. Chore is for non-functional changes like refactors or documentation updates. Fix is for bug fixes. Feat is for new features or commands.
+
+- One file per subcommand: every new CLI subcommand lives in its own file in `internal/cli/`, named after the command (e.g. `internal/cli/deletefile.go` for `file delete`). Use `init()` to call `parent.AddCommand(cmd)` and to bind flags with `cmd.Flags()`. Never register commands from anywhere other than the command's own `init()`.
+
+- Error wrapping style: wrap errors with `fmt.Errorf("context phrase: %w", err)`. Use `errors.New()` for static validation messages. Error messages are lowercase with no trailing period (e.g. `"listing pCloud tree: %w"`). Do not define custom error types unless there is a clear need to inspect them with `errors.As`.
+
+- CLI error exits: in command handler functions, handle errors by printing a message and calling `os.Exit(1)`. Never panic in a command handler. Sync operations are an exception — they log non-fatal warnings via `fmt.Fprintf(log, "warn: ...")` and continue rather than aborting.
+
+- New API endpoints: every new pCloud endpoint needs (1) a response model struct in `internal/pcloud/models/` in its own file named after the endpoint (e.g. `models/renamefile.go`), and (2) a method on `*API` in `internal/pcloud/api.go` that constructs a `Request` and calls `p.Query(req)`. Exception: `UserinfoResponse` is defined inline in `api.go` because it is used by both `GetUserInfo` and `LoginWithPassword` — authentication types may stay in `api.go`.
+
+- Test style: use table-driven tests with a local `tests := []struct{ name, in, want ... }` slice and `for _, tt := range tests { t.Run(tt.name, ...) }`. Use `testify/assert` for non-fatal assertions and `testify/require` to abort on unexpected errors. Mock HTTP responses with `httptest.NewServer()`.
+
+- Context usage: pass `context.Context` in long-running operations (`Syncer.Run`, `Uploader.Run`, `Watch` loops) and check cancellation with `if ctx.Err() != nil`. Do not add context parameters to individual CLI command handler functions — cobra handlers have the signature `func(cmd *cobra.Command, args []string)` and do not use context.
