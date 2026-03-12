@@ -19,18 +19,22 @@ import (
 
 var syncInterval time.Duration
 var syncDryRun bool
+var syncMode string
 
-// SyncCmd is the top-level "sync" command that performs a single sync pass.
+// SyncCmd is the top-level "sync" command. Default mode is "down" (pCloud → local).
 var SyncCmd = &cobra.Command{
 	Use:   "sync <pcloud-path> [local-dir]",
-	Short: "Sync a pCloud folder to a local directory.",
-	Long: `Download all files from a pCloud path to a local directory.
+	Short: "Sync between a pCloud folder and a local directory.",
+	Long: `Sync files between pCloud and a local directory.
 
-Only files that are newer on pCloud are downloaded. Files that have been
-deleted from pCloud are removed from the local directory.
+Default mode is "down": files newer on pCloud are downloaded and files deleted
+from pCloud are removed locally.
 
-If local-dir is omitted, the last path component of the pCloud path is used
-as the destination directory relative to the current working directory.`,
+Use --mode up to reverse the direction: files locally newer or absent on pCloud
+are uploaded, and remote files no longer present locally are deleted.
+
+In both modes arguments are <pcloud-path> and [local-dir]. With --mode up both
+arguments are required.`,
 	Args: cobra.RangeArgs(1, 2),
 	Run:  runSyncOnce,
 }
@@ -68,6 +72,8 @@ func init() {
 	SyncCmd.AddCommand(syncSystemdCmd)
 	SyncCmd.PersistentFlags().DurationVar(&syncInterval, "interval", 60*time.Second,
 		"polling interval used by the daemon (e.g. 30s, 5m)")
+	SyncCmd.Flags().StringVar(&syncMode, "mode", "down",
+		`sync direction: "down" (pCloud → local) or "up" (local → pCloud)`)
 	syncSystemdCmd.Flags().BoolVar(&syncDryRun, "dry-run", false,
 		"print the unit file and describe what would be done without making any changes")
 }
@@ -90,26 +96,58 @@ func parseSyncArgs(args []string) (cloudPath, localDir string) {
 
 func runSyncOnce(cmd *cobra.Command, args []string) {
 	cloudPath, localDir := parseSyncArgs(args)
-	absLocal, err := filepath.Abs(localDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
-		os.Exit(1)
-	}
 
-	fmt.Printf("Syncing  %s  ->  %s\n\n", cloudPath, absLocal)
-	syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
-	res, err := syncer.Run(context.Background())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "sync failed:", err)
+	switch syncMode {
+	case "down":
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Syncing  %s  ->  %s\n\n", cloudPath, absLocal)
+		syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
+		res, err := syncer.Run(context.Background())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sync failed:", err)
+			os.Exit(1)
+		}
+		upToDate := res.Total - res.Downloaded - res.Warnings
+		fmt.Printf("\nDone: %d downloaded, %d deleted, %d up to date",
+			res.Downloaded, res.Deleted, upToDate)
+		if res.Warnings > 0 {
+			fmt.Printf(", %d warning(s)", res.Warnings)
+		}
+		fmt.Println()
+
+	case "up":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "sync --mode up requires both <pcloud-path> and <local-dir>")
+			os.Exit(1)
+		}
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Syncing  %s  ->  %s\n\n", absLocal, cloudPath)
+		uploader := gosync.NewUploader(API, absLocal, cloudPath, os.Stdout)
+		res, err := uploader.Run(context.Background())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sync failed:", err)
+			os.Exit(1)
+		}
+		upToDate := res.Total - res.Downloaded - res.Warnings
+		fmt.Printf("\nDone: %d uploaded, %d deleted, %d up to date",
+			res.Downloaded, res.Deleted, upToDate)
+		if res.Warnings > 0 {
+			fmt.Printf(", %d warning(s)", res.Warnings)
+		}
+		fmt.Println()
+
+	default:
+		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\" or \"up\"\n", syncMode)
 		os.Exit(1)
 	}
-	upToDate := res.Total - res.Downloaded - res.Warnings
-	fmt.Printf("\nDone: %d downloaded, %d deleted, %d up to date",
-		res.Downloaded, res.Deleted, upToDate)
-	if res.Warnings > 0 {
-		fmt.Printf(", %d warning(s)", res.Warnings)
-	}
-	fmt.Println()
 }
 
 func runSyncDaemon(cmd *cobra.Command, args []string) {

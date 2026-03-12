@@ -511,6 +511,17 @@ func (p *API) GetZipLinkByFolderID(folderID int, filename string, forceDownload 
 	return response, nil
 }
 
+// EnsureFolder creates path on pCloud if it does not already exist.
+// It uses /createfolderifnotexists and is idempotent.
+func (p *API) EnsureFolder(path string) error {
+	req := &Request{
+		Endpoint:   "/createfolderifnotexists",
+		Parameters: url.Values{"path": {normalizePath(path)}},
+	}
+	_, err := p.Query(req)
+	return err
+}
+
 func normalizePath(path string) string {
 	trimmed := strings.TrimSpace(path)
 	if strings.HasPrefix(trimmed, "/") {
