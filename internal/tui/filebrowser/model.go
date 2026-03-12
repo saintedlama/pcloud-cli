@@ -220,7 +220,7 @@ func parentPath(p string) string {
 // fetchFolder returns a command that loads the given path from the API.
 func fetchFolder(api *pcloud.API, path string) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := api.ListFolder(path, false, false)
+		resp, err := api.ListFolder(path, pcloud.ListFolderOptions{})
 		if err != nil {
 			return msgs.ErrMsg{Err: err}
 		}

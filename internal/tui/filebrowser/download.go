@@ -272,7 +272,7 @@ func (m FolderDownloadDialog) View() tea.View {
 // downloadFolder fetches the folder as a zip via getziplink and extracts it locally.
 func downloadFolder(api *pcloud.API, entry msgs.Entry, destDir string) tea.Cmd {
 	return func() tea.Msg {
-		folderData, err := api.ListFolder(entry.Path, true, false)
+		folderData, err := api.ListFolder(entry.Path, pcloud.ListFolderOptions{NoFiles: true})
 		if err != nil {
 			return msgs.ErrMsg{Err: err}
 		}

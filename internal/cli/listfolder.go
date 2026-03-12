@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/rodaine/table"
+	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +57,7 @@ func listfolder(cmd *cobra.Command, args []string) {
 		path = args[0]
 	}
 
-	response, err := API.ListFolder(path, nofiles, showdeleted)
+	response, err := API.ListFolder(path, pcloud.ListFolderOptions{NoFiles: nofiles, ShowDeleted: showdeleted})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

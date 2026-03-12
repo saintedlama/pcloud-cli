@@ -1,0 +1,231 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"text/template"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	gosync "github.com/saintedlama/pcloud-cli/internal/sync"
+)
+
+var syncInterval time.Duration
+
+// SyncCmd is the top-level "sync" command that performs a single sync pass.
+var SyncCmd = &cobra.Command{
+	Use:   "sync <pcloud-path> [local-dir]",
+	Short: "Sync a pCloud folder to a local directory.",
+	Long: `Download all files from a pCloud path to a local directory.
+
+Only files that are newer on pCloud are downloaded. Files that have been
+deleted from pCloud are removed from the local directory.
+
+If local-dir is omitted, the last path component of the pCloud path is used
+as the destination directory relative to the current working directory.`,
+	Args: cobra.RangeArgs(1, 2),
+	Run:  runSyncOnce,
+}
+
+var syncDaemonCmd = &cobra.Command{
+	Use:   "daemon <pcloud-path> [local-dir]",
+	Short: "Sync continuously, polling pCloud for changes.",
+	Long: `Run a continuous sync daemon that polls pCloud on a fixed interval.
+
+The daemon logs every file synced or deleted and runs until interrupted
+(Ctrl-C / SIGTERM). Use --interval to change the polling frequency.`,
+	Args: cobra.RangeArgs(1, 2),
+	Run:  runSyncDaemon,
+}
+
+var syncSystemdCmd = &cobra.Command{
+	Use:   "systemd <pcloud-path> [local-dir]",
+	Short: "Install a systemd user service for continuous sync.",
+	Long: `Write a systemd user service unit that runs the sync daemon, then
+enable and start it with systemctl --user.
+
+The local-dir path is resolved to an absolute path before being embedded in
+the unit file, so it works regardless of where the service is started from.
+Use --interval to set the polling frequency written into the unit.`,
+	Args: cobra.RangeArgs(1, 2),
+	Run:  runSyncSystemd,
+}
+
+func init() {
+	RootCmd.AddCommand(SyncCmd)
+	SyncCmd.AddCommand(syncDaemonCmd)
+	SyncCmd.AddCommand(syncSystemdCmd)
+	SyncCmd.PersistentFlags().DurationVar(&syncInterval, "interval", 60*time.Second,
+		"polling interval used by the daemon (e.g. 30s, 5m)")
+}
+
+// parseSyncArgs extracts the pCloud path and local directory from args,
+// defaulting the local directory to the last component of the cloud path.
+func parseSyncArgs(args []string) (cloudPath, localDir string) {
+	cloudPath = args[0]
+	if len(args) >= 2 {
+		localDir = args[1]
+		return
+	}
+	base := filepath.Base(strings.TrimRight(filepath.ToSlash(cloudPath), "/"))
+	if base == "" || base == "." || base == "/" {
+		base = "pcloud-sync"
+	}
+	localDir = base
+	return
+}
+
+func runSyncOnce(cmd *cobra.Command, args []string) {
+	cloudPath, localDir := parseSyncArgs(args)
+	absLocal, err := filepath.Abs(localDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Syncing  %s  ->  %s\n\n", cloudPath, absLocal)
+	syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
+	res, err := syncer.Run(context.Background())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sync failed:", err)
+		os.Exit(1)
+	}
+	upToDate := res.Total - res.Downloaded - res.Warnings
+	fmt.Printf("\nDone: %d downloaded, %d deleted, %d up to date",
+		res.Downloaded, res.Deleted, upToDate)
+	if res.Warnings > 0 {
+		fmt.Printf(", %d warning(s)", res.Warnings)
+	}
+	fmt.Println()
+}
+
+func runSyncDaemon(cmd *cobra.Command, args []string) {
+	cloudPath, localDir := parseSyncArgs(args)
+	absLocal, err := filepath.Abs(localDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+		os.Exit(1)
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	fmt.Printf("Starting sync daemon: %s → %s (interval: %s)\n",
+		cloudPath, absLocal, syncInterval)
+
+	syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
+	if err := syncer.Watch(ctx, syncInterval); err != nil {
+		fmt.Fprintln(os.Stderr, "daemon error:", err)
+		os.Exit(1)
+	}
+}
+
+// unitTemplate is the systemd service unit template.
+// Paths that may contain spaces are quoted via the "q" function.
+const unitTemplate = `[Unit]
+Description=pCloud sync {{q .CloudPath}} to {{q .LocalDir}}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+`
+
+type unitVars struct {
+	CloudPath string
+	LocalDir  string
+	ExecPath  string
+	Interval  string
+}
+
+func runSyncSystemd(cmd *cobra.Command, args []string) {
+	cloudPath, localDir := parseSyncArgs(args)
+
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not determine executable path:", err)
+		os.Exit(1)
+	}
+	execPath, err = filepath.EvalSymlinks(execPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not resolve executable symlinks:", err)
+		os.Exit(1)
+	}
+
+	absLocal, err := filepath.Abs(localDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+		os.Exit(1)
+	}
+
+	// Sanitize cloud path into a valid unit name component.
+	sanitized := strings.NewReplacer("/", "-", " ", "_").Replace(strings.Trim(cloudPath, "/"))
+	unitName := "pcloud-sync-" + sanitized + ".service"
+
+	unitDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
+	if err := os.MkdirAll(unitDir, 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, "could not create systemd user directory:", err)
+		os.Exit(1)
+	}
+	unitPath := filepath.Join(unitDir, unitName)
+
+	tmpl := template.Must(template.New("unit").Funcs(template.FuncMap{
+		// q wraps a value in double quotes if it contains whitespace.
+		"q": func(s string) string {
+			if strings.ContainsAny(s, " \t") {
+				return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+			}
+			return s
+		},
+	}).Parse(unitTemplate))
+
+	f, err := os.Create(unitPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not write unit file:", err)
+		os.Exit(1)
+	}
+	if err := tmpl.Execute(f, unitVars{
+		CloudPath: cloudPath,
+		LocalDir:  absLocal,
+		ExecPath:  execPath,
+		Interval:  syncInterval.String(),
+	}); err != nil {
+		f.Close()
+		fmt.Fprintln(os.Stderr, "could not render unit template:", err)
+		os.Exit(1)
+	}
+	f.Close()
+
+	fmt.Printf("Unit file written: %s\n\n", unitPath)
+
+	for _, scArgs := range [][]string{
+		{"--user", "daemon-reload"},
+		{"--user", "enable", "--now", unitName},
+	} {
+		out, err := exec.Command("systemctl", scArgs...).CombinedOutput() //nolint:gosec
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "systemctl %s: %v\n%s\n",
+				strings.Join(scArgs, " "), err, out)
+			os.Exit(1)
+		}
+	}
+
+	fmt.Printf("Service %s enabled and started.\n\n", unitName)
+
+	if out, err := exec.Command("systemctl", "--user", "status", unitName).CombinedOutput(); err == nil { //nolint:gosec
+		fmt.Println(string(out))
+	}
+}

@@ -34,3 +34,6 @@ go.work.sum
 # OS files
 .DS_Store
 Thumbs.db
+
+# Development Artifacts
+Music/

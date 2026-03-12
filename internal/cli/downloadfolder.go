@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +41,7 @@ func downloadfolder(cmd *cobra.Command, args []string) {
 		localDestination = args[1]
 	}
 
-	folderData, err := API.ListFolder(remotePath, true, false)
+	folderData, err := API.ListFolder(remotePath, pcloud.ListFolderOptions{NoFiles: true})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

@@ -212,6 +212,26 @@ func (p *API) GetFileLink(path string) (models.GetfileResponse, error) {
 	return response, nil
 }
 
+// GetFileLinkByID returns a download link for the file identified by its numeric file ID.
+func (p *API) GetFileLinkByID(fileID int) (models.GetfileResponse, error) {
+	req := &Request{
+		Endpoint:   "/getfilelink",
+		Parameters: url.Values{"fileid": {strconv.Itoa(fileID)}},
+	}
+
+	resp, err := p.Query(req)
+	if err != nil {
+		return models.GetfileResponse{}, err
+	}
+
+	var response models.GetfileResponse
+	if err := json.Unmarshal(resp, &response); err != nil {
+		return models.GetfileResponse{}, err
+	}
+
+	return response, nil
+}
+
 func (p *API) UploadFile(localPath, remotePath string, renameIfExists bool) (models.UploadfileResponse, error) {
 	fileContents, err := os.ReadFile(localPath)
 	if err != nil {
@@ -366,18 +386,36 @@ func (p *API) DeleteFolderRecursive(path string) (models.DeletefolderRecursiveRe
 	return response, nil
 }
 
-func (p *API) ListFolder(path string, nofiles, showdeleted bool) (models.ListfolderResponse, error) {
+// ListFolderOptions controls optional parameters for the listfolder API call.
+type ListFolderOptions struct {
+	// Recursive returns the full directory tree when true (recursive=1).
+	Recursive bool
+	// ShowDeleted includes deleted files and folders that can be undeleted.
+	ShowDeleted bool
+	// NoFiles returns only the folder (sub)structure, omitting files.
+	NoFiles bool
+	// NoShares returns only the user's own folders and files, hiding shared items.
+	NoShares bool
+}
+
+func (p *API) ListFolder(path string, opts ListFolderOptions) (models.ListfolderResponse, error) {
 	if strings.TrimSpace(path) == "" {
 		path = "/"
 	} else {
 		path = normalizePath(path)
 	}
 	parameters := url.Values{"path": {path}}
-	if nofiles {
+	if opts.Recursive {
+		parameters.Add("recursive", "1")
+	}
+	if opts.ShowDeleted {
+		parameters.Add("showdeleted", "1")
+	}
+	if opts.NoFiles {
 		parameters.Add("nofiles", "1")
 	}
-	if showdeleted {
-		parameters.Add("showdeleted", "1")
+	if opts.NoShares {
+		parameters.Add("noshares", "1")
 	}
 
 	req := &Request{
