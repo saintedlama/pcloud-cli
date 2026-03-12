@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/saintedlama/pcloud-cli/compare/v1.0.0...v1.1.0) (2026-03-12)
+
+
+### Features
+
+* add dryrun option to systemd sync ([73225b3](https://github.com/saintedlama/pcloud-cli/commit/73225b3ded52e2fb91f316de9e4fe03bd76a37fe))
+
 ## 1.0.0 (2026-03-12)
 
 
