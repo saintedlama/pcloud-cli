@@ -164,3 +164,9 @@ This project uses **session auth** exclusively. OAuth 2.0 is not used.
 ```
 
 The `base_url` **must** match the region where the user's account is registered.
+
+## Coding Guidelines for Agents
+
+- Never use section comments like `// ---- normalizePath ----` or `// ---- end normalizePath ----` in code. This is an antipattern of code monkeys not knowing that files, functions and packages exist to structure code.
+
+- Semantic Commits: Use prefixes 'chore:', 'fix:', 'feat:' for commit messages to indicate the type of change. For example, 'fix: correct file upload logic' or 'feat: add folder rename command'. Chore is for non-functional changes like refactors or documentation updates. Fix is for bug fixes. Feat is for new features or commands.
