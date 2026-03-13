@@ -1,13 +1,14 @@
-// Package preview fetches a remote pCloud file and renders it for display
-// in a terminal viewport. Supported formats:
+// Package preview fetches a remote pCloud file and renders it for terminal
+// display inside a bubbletea viewport.
 //
-//   - Markdown      (.md, .markdown)              → goldmark + chroma renderer
-//   - Source code   (.go, .py, .js, .ts, …)       → chroma syntax highlight
-//   - Plain text    (.txt, .log)                   → raw, no highlight
-//   - PDF           (.pdf)                         → ledongthuc/pdf text extraction
-//   - Images        (.jpg, .png, .gif, .bmp, .webp) → image2ascii colored ASCII art
-//   - CSV           (.csv)                         → aligned text table
-//   - XML           (.xml)                         → chroma syntax highlight
+// Format detection is centralised in GetPreviewType (type.go). Renderers:
+//
+//   - PreviewMarkdown → goldmark + chroma
+//   - PreviewCode     → chroma syntax highlight
+//   - PreviewText     → raw string
+//   - PreviewPDF      → ledongthuc/pdf text extraction
+//   - PreviewImage    → image2ascii colored ASCII art
+//   - PreviewCSV      → aligned text table
 package preview
 
 import (
@@ -21,7 +22,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2/formatters"
@@ -48,75 +48,30 @@ func RenderFromURL(downloadURL, name string, width, height int) (string, error) 
 }
 
 // Render renders raw file bytes to a string for terminal display.
-// name is used purely for extension-based format detection.
+// name is used purely for format detection via GetPreviewType.
 // width and height are the available viewport dimensions; a 2-column border
 // offset is subtracted from width here so all renderers stay within bounds.
 func Render(data []byte, name string, width, height int) (string, error) {
 	if width > 2 {
 		width -= 2
 	}
-	ext := strings.ToLower(filepath.Ext(name))
 
-	switch ext {
-	case ".md", ".markdown":
+	switch GetPreviewType(name) {
+	case PreviewMarkdown:
 		return renderMarkdown(data)
-	case ".pdf":
+	case PreviewPDF:
 		return renderPDF(data)
-	case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp":
+	case PreviewImage:
 		return renderImage(data, name, width, height)
-	case ".csv":
+	case PreviewCSV:
 		return renderCSV(data, width)
-	case ".txt", ".log", "":
+	case PreviewText:
 		return string(data), nil
-	default:
+	case PreviewCode:
 		return renderCode(data, name)
+	default: // PreviewUnsupported
+		return RenderError("No preview available for this file type."), nil
 	}
-}
-
-// CanPreview reports whether the given filename has a supported preview format.
-func CanPreview(name string) bool {
-	ext := strings.ToLower(filepath.Ext(name))
-	switch ext {
-	// Documents
-	case ".md", ".markdown", ".mdx", ".rst", ".adoc", ".asciidoc", ".org", ".tex", ".bib":
-		return true
-	// Binary formats with dedicated renderers
-	case ".pdf",
-		".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp":
-		return true
-	// Data / config formats
-	case ".csv", ".tsv",
-		".json", ".yaml", ".yml", ".toml", ".ini", ".xml",
-		".env", ".envrc", ".conf", ".cfg", ".config", ".properties",
-		".tf", ".tfvars", ".nix", ".lock":
-		return true
-	// Plain text and logs
-	case ".txt", ".log", ".diff", ".patch":
-		return true
-	// Web and templating
-	case ".html", ".htm", ".css", ".scss", ".sass", ".less",
-		".vue", ".svelte",
-		".pug", ".jade", ".hbs", ".mustache":
-		return true
-	// General scripting and compiled languages
-	case ".go", ".py", ".rb", ".php", ".lua", ".pl", ".pm", ".awk",
-		".js", ".ts", ".jsx", ".tsx", ".coffee",
-		".cs", ".vb", ".fs", ".fsx",
-		".java", ".kt", ".scala", ".groovy", ".gradle",
-		".swift", ".dart",
-		".rs", ".c", ".cpp", ".h", ".hpp", ".zig", ".nim", ".d",
-		".hs", ".clj", ".cljs", ".erl", ".hrl", ".ex", ".exs",
-		".r", ".jl",
-		".ml", ".mli",
-		".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd",
-		".sql",
-		".proto", ".graphql", ".gql",
-		".dockerfile", ".makefile", ".gitignore":
-		return true
-	case "":
-		return true // plain text fallback (e.g. Dockerfile, Makefile)
-	}
-	return false
 }
 
 // fetchBytes downloads the URL and returns the raw body bytes (capped at 4 MB).

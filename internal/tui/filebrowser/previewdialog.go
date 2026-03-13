@@ -34,11 +34,6 @@ var (
 	previewLoadingStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("244")).
 				Padding(0, 1)
-
-	previewUnsupportedStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("244")).
-				Italic(true).
-				Padding(0, 1)
 )
 
 // PreviewDialog is a dialog-compatible tea.Model that fetches and displays
@@ -178,13 +173,6 @@ func fetchPreview(api *pcloud.API, entry msgs.Entry, width, height int) tea.Cmd 
 				result = msgs.ErrMsg{Err: fmt.Errorf("preview panic: %v", r)}
 			}
 		}()
-
-		if !preview.CanPreview(entry.Name) {
-			return msgs.PreviewReadyMsg{
-				Name:    entry.Name,
-				Content: previewUnsupportedStyle.Render("No preview available for this file type."),
-			}
-		}
 
 		link, err := api.GetFileLink(entry.Path)
 		if err != nil {

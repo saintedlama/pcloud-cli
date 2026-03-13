@@ -45,7 +45,7 @@ func NewActionsDialog(api *pcloud.API, entry msgs.Entry, width, height int) Acti
 		actions = folderActions
 	} else {
 		actions = []action{
-			{label: "Preview", key: "preview", disabled: !preview.CanPreview(entry.Name)},
+			{label: "Preview", key: "preview", disabled: preview.GetPreviewType(entry.Name) == preview.PreviewUnsupported},
 			{label: "Download", key: "download"},
 			{label: "Rename", key: "rename"},
 			{label: "Move", key: "move"},
