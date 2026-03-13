@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/saintedlama/pcloud-cli/compare/v1.2.0...v1.3.0) (2026-03-13)
+
+
+### Features
+
+* support more filetypes in preview and fix input bugs ([254a750](https://github.com/saintedlama/pcloud-cli/commit/254a7507c424c82f412bdfd174a5bdc6e160bcdf))
+* support more preview types and encapsulate preview type handling ([a7ee86c](https://github.com/saintedlama/pcloud-cli/commit/a7ee86c29f6a5648f464fed10b226593468d4742))
+
 ## [1.2.0](https://github.com/saintedlama/pcloud-cli/compare/v1.1.0...v1.2.0) (2026-03-12)
 
 
