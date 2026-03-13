@@ -4,6 +4,17 @@
 
 Command line interface to pCloud API written in Go.
 
+## It's a TUI too!
+
+File Browser
+![File browser](screenshots/file_browser.png)
+
+File Preview
+![File preview](screenshots/file_preview.png)
+
+Sync Daemon Management
+![Daemon management](screenshots/daemon_management.png)
+
 ## Build
 
 Clone the repository and run:
