@@ -36,6 +36,4 @@ go.work.sum
 Thumbs.db
 
 # Development Artifacts
-Music/
-Config/
-
+testdata/
