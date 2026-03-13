@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,18 +24,24 @@ var syncMode string
 
 // SyncCmd is the top-level "sync" command. Default mode is "down" (pCloud → local).
 var SyncCmd = &cobra.Command{
-	Use:   "sync <pcloud-path> [local-dir]",
+	Use:   "sync <pcloud-path|local-dir> [local-dir|pcloud-path]",
 	Short: "Sync between a pCloud folder and a local directory.",
 	Long: `Sync files between pCloud and a local directory.
 
 Default mode is "down": files newer on pCloud are downloaded and files deleted
-from pCloud are removed locally.
+from pCloud are removed locally. Argument order: <pcloud-path> [local-dir].
 
-Use --mode up to reverse the direction: files locally newer or absent on pCloud
+With --mode up the direction is reversed: files locally newer or absent on pCloud
 are uploaded, and remote files no longer present locally are deleted.
 
-In both modes arguments are <pcloud-path> and [local-dir]. With --mode up both
-arguments are required.`,
+With --mode up and a single argument that argument is treated as the local
+directory and the pCloud target name is derived from its last path component:
+
+  sync ./my-photos --mode up       # uploads to /my-photos on pCloud
+  sync /data/project --mode up     # uploads to /project on pCloud
+
+With --mode up and two arguments the first is the pCloud path and the second
+is the local directory (same order as --mode down).`,
 	Args: cobra.RangeArgs(1, 2),
 	Run:  runSyncOnce,
 }
@@ -80,7 +87,9 @@ func init() {
 
 // parseSyncArgs extracts the pCloud path and local directory from args,
 // defaulting the local directory to the last component of the cloud path.
+// Used for --mode down.
 func parseSyncArgs(args []string) (cloudPath, localDir string) {
+
 	cloudPath = args[0]
 	if len(args) >= 2 {
 		localDir = args[1]
@@ -92,6 +101,27 @@ func parseSyncArgs(args []string) (cloudPath, localDir string) {
 	}
 	localDir = base
 	return
+}
+
+// parseUploadArgs extracts the local directory and pCloud path for --mode up.
+// With two arguments the first is the pCloud path and the second is the local
+// directory (matching the down-mode argument order).
+// With one argument the argument is treated as the local path; the pCloud target
+// is derived from the last component of the resolved absolute path.
+// Returns an error when the derived name would be empty or a bare root ("/").
+func parseUploadArgs(args []string) (localDir, cloudPath string, err error) {
+	if len(args) == 2 {
+		return args[1], args[0], nil
+	}
+	abs, err := filepath.Abs(args[0])
+	if err != nil {
+		return "", "", fmt.Errorf("could not resolve local path: %w", err)
+	}
+	base := filepath.Base(abs)
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return "", "", errors.New("cannot derive pCloud path from root directory; provide <pcloud-path> and <local-dir> explicitly")
+	}
+	return abs, "/" + base, nil
 }
 
 func runSyncOnce(cmd *cobra.Command, args []string) {
@@ -120,11 +150,12 @@ func runSyncOnce(cmd *cobra.Command, args []string) {
 		fmt.Println()
 
 	case "up":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "sync --mode up requires both <pcloud-path> and <local-dir>")
+		absLocal, cloudPath, err := parseUploadArgs(args)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		absLocal, err := filepath.Abs(localDir)
+		absLocal, err = filepath.Abs(absLocal)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
 			os.Exit(1)
@@ -151,18 +182,17 @@ func runSyncOnce(cmd *cobra.Command, args []string) {
 }
 
 func runSyncDaemon(cmd *cobra.Command, args []string) {
-	cloudPath, localDir := parseSyncArgs(args)
-	absLocal, err := filepath.Abs(localDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
-		os.Exit(1)
-	}
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	switch syncMode {
 	case "down":
+		cloudPath, localDir := parseSyncArgs(args)
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+			os.Exit(1)
+		}
 		fmt.Printf("Starting sync daemon (down): %s → %s (interval: %s)\n",
 			cloudPath, absLocal, syncInterval)
 		syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
@@ -171,8 +201,14 @@ func runSyncDaemon(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	case "up":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "sync daemon --mode up requires both <pcloud-path> and <local-dir>")
+		localDir, cloudPath, err := parseUploadArgs(args)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
 			os.Exit(1)
 		}
 		fmt.Printf("Starting sync daemon (up): %s → %s (interval: %s)\n",
@@ -214,7 +250,17 @@ type unitVars struct {
 }
 
 func runSyncSystemd(cmd *cobra.Command, args []string) {
-	cloudPath, localDir := parseSyncArgs(args)
+	var cloudPath, localDir string
+	if syncMode == "up" {
+		var err error
+		localDir, cloudPath, err = parseUploadArgs(args)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	} else {
+		cloudPath, localDir = parseSyncArgs(args)
+	}
 
 	execPath, err := os.Executable()
 	if err != nil {

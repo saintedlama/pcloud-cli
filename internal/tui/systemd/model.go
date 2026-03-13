@@ -176,6 +176,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case msgs.CloseDialogMsg:
+		if res, ok := msg.Result.(unitOpDoneMsg); ok {
+			if res.err != nil {
+				m.statusMsg = errorStyle.Render(res.err.Error())
+			} else {
+				m.statusMsg = successStyle.Render(res.msg)
+			}
+			m.loading = true
+			return m, tea.Batch(m.spinner.Tick, loadUnits)
+		}
+		if msg.Result == "removed" {
+			m.loading = true
+			return m, tea.Batch(m.spinner.Tick, loadUnits)
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		m.statusMsg = ""
 		switch msg.String() {
@@ -190,29 +206,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "r":
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
-		case "e":
+		case "enter", "a":
 			if u := m.selected(); u != nil {
-				name := u.Name
-				return m, func() tea.Msg { return runSystemctlOp("enable", name) }
-			}
-		case "d":
-			if u := m.selected(); u != nil {
-				name := u.Name
-				return m, func() tea.Msg { return runSystemctlOp("disable", name) }
-			}
-		case "s":
-			if u := m.selected(); u != nil {
-				name := u.Name
-				return m, func() tea.Msg { return runSystemctlOp("start", name) }
-			}
-		case "x":
-			if u := m.selected(); u != nil {
-				name := u.Name
-				return m, func() tea.Msg { return runSystemctlOp("stop", name) }
-			}
-		case "enter", "l":
-			if u := m.selected(); u != nil {
-				dlg := NewLogsDialog(u.Name, m.width, m.height)
+				dlg := NewActionsDialog(*u, m.width, m.height)
 				return m, func() tea.Msg {
 					return msgs.ShowDialogMsg{Content: dlg}
 				}
@@ -269,7 +265,7 @@ func (m Model) View() string {
 	if m.statusMsg != "" {
 		sb.WriteString(m.statusMsg + "\n\n")
 	}
-	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  e enable  |  d disable  |  s start  |  x stop  |  enter/l logs  |  r reload  |  tab files  |  q quit"))
+	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  r reload  |  tab files  |  q quit"))
 	return sb.String()
 }
 

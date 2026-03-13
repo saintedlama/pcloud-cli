@@ -20,11 +20,12 @@ const (
 
 // DeleteDialog asks for confirmation before deleting a file.
 type DeleteDialog struct {
-	input textinput.Model
-	api   *pcloud.API
-	entry msgs.Entry
-	state deleteState
-	err   error
+	input   textinput.Model
+	initCmd tea.Cmd
+	api     *pcloud.API
+	entry   msgs.Entry
+	state   deleteState
+	err     error
 }
 
 // NewDeleteDialog creates a delete confirmation dialog.
@@ -33,19 +34,22 @@ func NewDeleteDialog(api *pcloud.API, entry msgs.Entry) DeleteDialog {
 	ti.CharLimit = 1
 	ti.SetWidth(5)
 	ti.Placeholder = "N"
-
+	// Focus() has a pointer receiver; calling it here (while ti is addressable)
+	// sets ti.focus = true on the stored value.
+	initCmd := ti.Focus()
 	return DeleteDialog{
-		input: ti,
-		api:   api,
-		entry: entry,
-		state: deleteConfirm,
+		input:   ti,
+		initCmd: initCmd,
+		api:     api,
+		entry:   entry,
+		state:   deleteConfirm,
 	}
 }
 
 type deleteFileMsg struct{}
 
 func (m DeleteDialog) Init() tea.Cmd {
-	return m.input.Focus()
+	return m.initCmd
 }
 
 func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

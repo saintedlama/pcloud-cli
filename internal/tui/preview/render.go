@@ -77,22 +77,44 @@ func Render(data []byte, name string, width, height int) (string, error) {
 func CanPreview(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	switch ext {
-	case ".md", ".markdown",
-		".pdf",
-		".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
-		".csv", ".txt", ".log",
-		".go", ".py", ".js", ".ts", ".jsx", ".tsx",
-		".json", ".yaml", ".yml", ".toml", ".ini",
-		".sh", ".bash", ".zsh",
+	// Documents
+	case ".md", ".markdown", ".mdx", ".rst", ".adoc", ".asciidoc", ".org", ".tex", ".bib":
+		return true
+	// Binary formats with dedicated renderers
+	case ".pdf",
+		".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp":
+		return true
+	// Data / config formats
+	case ".csv", ".tsv",
+		".json", ".yaml", ".yml", ".toml", ".ini", ".xml",
+		".env", ".envrc", ".conf", ".cfg", ".config", ".properties",
+		".tf", ".tfvars", ".nix", ".lock":
+		return true
+	// Plain text and logs
+	case ".txt", ".log", ".diff", ".patch":
+		return true
+	// Web and templating
+	case ".html", ".htm", ".css", ".scss", ".sass", ".less",
+		".vue", ".svelte",
+		".pug", ".jade", ".hbs", ".mustache":
+		return true
+	// General scripting and compiled languages
+	case ".go", ".py", ".rb", ".php", ".lua", ".pl", ".pm", ".awk",
+		".js", ".ts", ".jsx", ".tsx", ".coffee",
+		".cs", ".vb", ".fs", ".fsx",
+		".java", ".kt", ".scala", ".groovy", ".gradle",
+		".swift", ".dart",
+		".rs", ".c", ".cpp", ".h", ".hpp", ".zig", ".nim", ".d",
+		".hs", ".clj", ".cljs", ".erl", ".hrl", ".ex", ".exs",
+		".r", ".jl",
+		".ml", ".mli",
+		".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd",
 		".sql",
-		".html", ".htm", ".css",
-		".xml",
-		".c", ".cpp", ".h", ".hpp",
-		".java", ".kt", ".rs", ".rb", ".php",
+		".proto", ".graphql", ".gql",
 		".dockerfile", ".makefile", ".gitignore":
 		return true
 	case "":
-		return true // plain text fallback
+		return true // plain text fallback (e.g. Dockerfile, Makefile)
 	}
 	return false
 }

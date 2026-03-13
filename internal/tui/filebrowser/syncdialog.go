@@ -35,6 +35,7 @@ type syncDoneMsg struct {
 type SyncDialog struct {
 	cloudPath string
 	input     textinput.Model
+	initCmd   tea.Cmd
 	spinner   spinner.Model
 	state     syncDialogState
 	unitName  string
@@ -53,6 +54,7 @@ func NewSyncDialog(cloudPath string) SyncDialog {
 	ti.SetWidth(40)
 	ti.Placeholder = "local directory"
 	ti.SetValue(base)
+	initCmd := ti.Focus()
 
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
@@ -60,13 +62,14 @@ func NewSyncDialog(cloudPath string) SyncDialog {
 	return SyncDialog{
 		cloudPath: cloudPath,
 		input:     ti,
+		initCmd:   initCmd,
 		spinner:   s,
 		state:     syncInput,
 	}
 }
 
 func (m SyncDialog) Init() tea.Cmd {
-	return m.input.Focus()
+	return m.initCmd
 }
 
 func (m SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
