@@ -20,39 +20,36 @@ const (
 
 // MoveDialog lets the user move a file to a different folder.
 type MoveDialog struct {
-	input   textinput.Model
-	initCmd tea.Cmd
-	api     *pcloud.API
-	entry   msgs.Entry
-	state   moveState
-	err     error
+	input textinput.Model
+	api   *pcloud.API
+	entry msgs.Entry
+	state moveState
+	err   error
 }
 
 // NewMoveDialog creates a move dialog for the given file entry.
-func NewMoveDialog(api *pcloud.API, entry msgs.Entry) MoveDialog {
+func NewMoveDialog(api *pcloud.API, entry msgs.Entry) *MoveDialog {
 	ti := textinput.New()
 	ti.CharLimit = 500
 	ti.SetWidth(40)
 	ti.Placeholder = "/destination/folder"
 	ti.SetValue(path.Dir(entry.Path))
-	initCmd := ti.Focus()
 
-	return MoveDialog{
-		input:   ti,
-		initCmd: initCmd,
-		api:     api,
-		entry:   entry,
-		state:   moveInput,
+	return &MoveDialog{
+		input: ti,
+		api:   api,
+		entry: entry,
+		state: moveInput,
 	}
 }
 
 type moveFileMsg struct{}
 
-func (m MoveDialog) Init() tea.Cmd {
-	return m.initCmd
+func (m *MoveDialog) Init() tea.Cmd {
+	return m.input.Focus()
 }
 
-func (m MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == moveDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
@@ -95,7 +92,7 @@ func (m MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m MoveDialog) View() tea.View {
+func (m *MoveDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Move File")
 	s += "\n\n"

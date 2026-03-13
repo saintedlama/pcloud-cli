@@ -35,7 +35,6 @@ type syncDoneMsg struct {
 type SyncDialog struct {
 	cloudPath string
 	input     textinput.Model
-	initCmd   tea.Cmd
 	spinner   spinner.Model
 	state     syncDialogState
 	unitName  string
@@ -43,7 +42,7 @@ type SyncDialog struct {
 }
 
 // NewSyncDialog creates a sync setup dialog for the given folder path.
-func NewSyncDialog(cloudPath string) SyncDialog {
+func NewSyncDialog(cloudPath string) *SyncDialog {
 	base := filepath.Base(strings.TrimRight(filepath.ToSlash(cloudPath), "/"))
 	if base == "" || base == "." || base == "/" {
 		base = "pcloud-sync"
@@ -54,25 +53,23 @@ func NewSyncDialog(cloudPath string) SyncDialog {
 	ti.SetWidth(40)
 	ti.Placeholder = "local directory"
 	ti.SetValue(base)
-	initCmd := ti.Focus()
 
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 
-	return SyncDialog{
+	return &SyncDialog{
 		cloudPath: cloudPath,
 		input:     ti,
-		initCmd:   initCmd,
 		spinner:   s,
 		state:     syncInput,
 	}
 }
 
-func (m SyncDialog) Init() tea.Cmd {
-	return m.initCmd
+func (m *SyncDialog) Init() tea.Cmd {
+	return m.input.Focus()
 }
 
-func (m SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == syncDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
@@ -116,7 +113,7 @@ func (m SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m SyncDialog) View() tea.View {
+func (m *SyncDialog) View() tea.View {
 	var sb strings.Builder
 	sb.WriteString(titleStyle.Render("pCloud") + "  ")
 	sb.WriteString(dialogTitleStyle.Render("Create Sync Daemon"))

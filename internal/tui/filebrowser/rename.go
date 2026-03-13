@@ -20,39 +20,36 @@ const (
 
 // RenameDialog lets the user rename a file.
 type RenameDialog struct {
-	input   textinput.Model
-	initCmd tea.Cmd
-	api     *pcloud.API
-	entry   msgs.Entry
-	state   renameState
-	err     error
+	input textinput.Model
+	api   *pcloud.API
+	entry msgs.Entry
+	state renameState
+	err   error
 }
 
 // NewRenameDialog creates a rename dialog for the given file entry.
-func NewRenameDialog(api *pcloud.API, entry msgs.Entry) RenameDialog {
+func NewRenameDialog(api *pcloud.API, entry msgs.Entry) *RenameDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
 	ti.SetWidth(40)
 	ti.Placeholder = "new name"
 	ti.SetValue(entry.Name)
-	initCmd := ti.Focus()
 
-	return RenameDialog{
-		input:   ti,
-		initCmd: initCmd,
-		api:     api,
-		entry:   entry,
-		state:   renameInput,
+	return &RenameDialog{
+		input: ti,
+		api:   api,
+		entry: entry,
+		state: renameInput,
 	}
 }
 
 type renameFileMsg struct{}
 
-func (m RenameDialog) Init() tea.Cmd {
-	return m.initCmd
+func (m *RenameDialog) Init() tea.Cmd {
+	return m.input.Focus()
 }
 
-func (m RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == renameDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
@@ -93,7 +90,7 @@ func (m RenameDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m RenameDialog) View() tea.View {
+func (m *RenameDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Rename File")
 	s += "\n\n"

@@ -26,40 +26,34 @@ type removeUnitMsg struct{}
 // RemoveDialog asks the user to confirm, then stops, disables, and deletes
 // the systemd unit file for the selected sync daemon.
 type RemoveDialog struct {
-	unit    Unit
-	input   textinput.Model
-	initCmd tea.Cmd
-	state   removeState
-	err     error
-	width   int
-	height  int
+	unit   Unit
+	input  textinput.Model
+	state  removeState
+	err    error
+	width  int
+	height int
 }
 
 // NewRemoveDialog creates a remove confirmation dialog for the given unit.
-func NewRemoveDialog(unit Unit, width, height int) RemoveDialog {
+func NewRemoveDialog(unit Unit, width, height int) *RemoveDialog {
 	ti := textinput.New()
 	ti.CharLimit = 1
 	ti.SetWidth(5)
 	ti.Placeholder = "N"
-	// Focus() has a pointer receiver; calling it here (while ti is addressable)
-	// sets ti.focus = true on the stored value. Storing the returned blink cmd
-	// lets Init() return it without re-calling Focus() on a value copy.
-	initCmd := ti.Focus()
-	return RemoveDialog{
-		unit:    unit,
-		input:   ti,
-		initCmd: initCmd,
-		state:   removeConfirm,
-		width:   width,
-		height:  height,
+	return &RemoveDialog{
+		unit:   unit,
+		input:  ti,
+		state:  removeConfirm,
+		width:  width,
+		height: height,
 	}
 }
 
-func (m RemoveDialog) Init() tea.Cmd {
-	return m.initCmd
+func (m *RemoveDialog) Init() tea.Cmd {
+	return m.input.Focus()
 }
 
-func (m RemoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *RemoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == removeDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
@@ -100,7 +94,7 @@ func (m RemoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m RemoveDialog) View() tea.View {
+func (m *RemoveDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += errorStyle.Render("Remove Sync Daemon")
 	s += "\n\n"

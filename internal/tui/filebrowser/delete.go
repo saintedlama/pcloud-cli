@@ -20,39 +20,34 @@ const (
 
 // DeleteDialog asks for confirmation before deleting a file.
 type DeleteDialog struct {
-	input   textinput.Model
-	initCmd tea.Cmd
-	api     *pcloud.API
-	entry   msgs.Entry
-	state   deleteState
-	err     error
+	input textinput.Model
+	api   *pcloud.API
+	entry msgs.Entry
+	state deleteState
+	err   error
 }
 
 // NewDeleteDialog creates a delete confirmation dialog.
-func NewDeleteDialog(api *pcloud.API, entry msgs.Entry) DeleteDialog {
+func NewDeleteDialog(api *pcloud.API, entry msgs.Entry) *DeleteDialog {
 	ti := textinput.New()
 	ti.CharLimit = 1
 	ti.SetWidth(5)
 	ti.Placeholder = "N"
-	// Focus() has a pointer receiver; calling it here (while ti is addressable)
-	// sets ti.focus = true on the stored value.
-	initCmd := ti.Focus()
-	return DeleteDialog{
-		input:   ti,
-		initCmd: initCmd,
-		api:     api,
-		entry:   entry,
-		state:   deleteConfirm,
+	return &DeleteDialog{
+		input: ti,
+		api:   api,
+		entry: entry,
+		state: deleteConfirm,
 	}
 }
 
 type deleteFileMsg struct{}
 
-func (m DeleteDialog) Init() tea.Cmd {
-	return m.initCmd
+func (m *DeleteDialog) Init() tea.Cmd {
+	return m.input.Focus()
 }
 
-func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == deleteDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
@@ -93,7 +88,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m DeleteDialog) View() tea.View {
+func (m *DeleteDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += errorStyle.Render("Delete File")
 	s += "\n\n"
