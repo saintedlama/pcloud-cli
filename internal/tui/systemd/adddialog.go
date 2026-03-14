@@ -370,6 +370,9 @@ func installUnit(cloudPath, localDir, modeFlag string) tea.Cmd {
 
 		cloudPath = strings.TrimSpace(cloudPath)
 		sanitized := strings.NewReplacer("/", "-", " ", "_").Replace(strings.Trim(cloudPath, "/"))
+		if sanitized == "" {
+			sanitized = "default"
+		}
 		unitName := "pcloud-sync-" + sanitized + ".service"
 
 		unitDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
