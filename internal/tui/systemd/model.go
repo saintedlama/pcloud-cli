@@ -14,6 +14,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
 
@@ -106,6 +107,8 @@ func modeStyle(mode string) lipgloss.Style {
 	switch mode {
 	case "up":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("213")) // magenta
+	case "two-way":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // green
 	default: // "down"
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("39")) // blue
 	}
@@ -115,6 +118,7 @@ func modeStyle(mode string) lipgloss.Style {
 // It satisfies the same component interface as filebrowser.Model:
 // Init/Update/(View string), not a full tea.Model.
 type Model struct {
+	api       pcloud.CloudAPI
 	units     []Unit
 	cursor    int
 	loading   bool
@@ -125,10 +129,11 @@ type Model struct {
 }
 
 // New constructs a Model that will load units on Init.
-func New(width, height int) Model {
+func New(api pcloud.CloudAPI, width, height int) Model {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 	return Model{
+		api:     api,
 		spinner: s,
 		loading: true,
 		width:   width,
@@ -186,7 +191,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
 		}
-		if msg.Result == "removed" {
+		if msg.Result == "removed" || msg.Result == "added" {
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
 		}
@@ -213,6 +218,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					return msgs.ShowDialogMsg{Content: dlg}
 				}
 			}
+		case "n":
+			dlg := NewAddDaemonDialog(m.api)
+			return m, func() tea.Msg {
+				return msgs.ShowDialogMsg{Content: dlg}
+			}
 		}
 	}
 	return m, nil
@@ -235,8 +245,8 @@ func (m Model) View() string {
 	}
 
 	if len(m.units) == 0 {
-		body := dimStyle.Render("No pcloud-sync services found.\nInstall one with: pcloud-cli sync systemd <path>")
-		foot := helpStyle.Render("r reload  |  tab switch to files  |  q quit")
+		body := dimStyle.Render("No pcloud-sync services found.\nPress n to add one.")
+		foot := helpStyle.Render("n add  |  r reload  |  tab switch to files  |  q quit")
 		return header + body + "\n\n" + foot
 	}
 
@@ -265,7 +275,7 @@ func (m Model) View() string {
 	if m.statusMsg != "" {
 		sb.WriteString(m.statusMsg + "\n\n")
 	}
-	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  r reload  |  tab files  |  q quit"))
+	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  n add  |  r reload  |  tab files  |  q quit"))
 	return sb.String()
 }
 

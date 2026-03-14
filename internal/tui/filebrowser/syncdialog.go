@@ -19,10 +19,27 @@ import (
 type syncDialogState int
 
 const (
-	syncInput syncDialogState = iota
+	syncModeSelect syncDialogState = iota
+	syncInput
 	syncRunning
 	syncDone
 )
+
+type syncMode int
+
+const (
+	syncModeDown syncMode = iota
+	syncModeTwoWay
+)
+
+var syncModes = []struct {
+	label string
+	mode  syncMode
+	flag  string
+}{
+	{label: "down     (pCloud → local, polling)", mode: syncModeDown, flag: "down"},
+	{label: "two-way  (pCloud ↔ local, fs-events)", mode: syncModeTwoWay, flag: "two-way"},
+}
 
 // syncDoneMsg carries the result of the systemd unit installation.
 type syncDoneMsg struct {
@@ -30,15 +47,16 @@ type syncDoneMsg struct {
 	err      error
 }
 
-// SyncDialog prompts for a local directory and installs a systemd user service
-// that continuously syncs the selected pCloud folder to that directory.
+// SyncDialog prompts for a sync mode and a local directory, then installs a
+// systemd user service that continuously syncs the selected pCloud folder.
 type SyncDialog struct {
-	cloudPath string
-	input     textinput.Model
-	spinner   spinner.Model
-	state     syncDialogState
-	unitName  string
-	err       error
+	cloudPath  string
+	modeCursor int
+	input      textinput.Model
+	spinner    spinner.Model
+	state      syncDialogState
+	unitName   string
+	err        error
 }
 
 // NewSyncDialog creates a sync setup dialog for the given folder path.
@@ -58,15 +76,16 @@ func NewSyncDialog(cloudPath string) *SyncDialog {
 	s.Spinner = spinner.MiniDot
 
 	return &SyncDialog{
-		cloudPath: cloudPath,
-		input:     ti,
-		spinner:   s,
-		state:     syncInput,
+		cloudPath:  cloudPath,
+		modeCursor: 0,
+		input:      ti,
+		spinner:    s,
+		state:      syncModeSelect,
 	}
 }
 
 func (m *SyncDialog) Init() tea.Cmd {
-	return m.input.Focus()
+	return nil
 }
 
 func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -96,21 +115,47 @@ func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if kMsg.String() == "enter" {
-			localDir := strings.TrimSpace(m.input.Value())
-			if localDir == "" {
-				return m, nil
+		switch m.state {
+		case syncModeSelect:
+			switch kMsg.String() {
+			case "up", "k":
+				if m.modeCursor > 0 {
+					m.modeCursor--
+				}
+			case "down", "j":
+				if m.modeCursor < len(syncModes)-1 {
+					m.modeCursor++
+				}
+			case "enter":
+				m.state = syncInput
+				return m, m.input.Focus()
+			case "esc":
+				return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 			}
-			m.input.Blur()
-			m.state = syncRunning
-			cloudPath := m.cloudPath
-			return m, tea.Batch(m.spinner.Tick, installSyncUnit(cloudPath, localDir))
+			return m, nil
+
+		case syncInput:
+			if kMsg.String() == "enter" {
+				localDir := strings.TrimSpace(m.input.Value())
+				if localDir == "" {
+					return m, nil
+				}
+				m.input.Blur()
+				m.state = syncRunning
+				cloudPath := m.cloudPath
+				modeFlag := syncModes[m.modeCursor].flag
+				return m, tea.Batch(m.spinner.Tick, installSyncUnit(cloudPath, localDir, modeFlag))
+			}
 		}
 	}
 
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return m, cmd
+	if m.state == syncInput {
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+	}
+
+	return m, nil
 }
 
 func (m *SyncDialog) View() tea.View {
@@ -143,6 +188,25 @@ func (m *SyncDialog) View() tea.View {
 		return tea.NewView(sb.String())
 	}
 
+	if m.state == syncModeSelect {
+		sb.WriteString("  Sync mode:\n\n")
+		for i, sm := range syncModes {
+			if i == m.modeCursor {
+				sb.WriteString(selectedStyle.Render("  > " + sm.label))
+			} else {
+				sb.WriteString("    " + sm.label)
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+		sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
+		return tea.NewView(sb.String())
+	}
+
+	// syncInput state
+	sb.WriteString("  Mode:        ")
+	sb.WriteString(pathStyle.Render(syncModes[m.modeCursor].label))
+	sb.WriteString("\n")
 	sb.WriteString("  Local dir:   ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
@@ -157,7 +221,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}} --mode down
+ExecStart={{q .ExecPath}} sync daemon {{q .CloudPath}} {{q .LocalDir}} --interval {{.Interval}} --mode {{.Mode}}
 Restart=on-failure
 RestartSec=10
 
@@ -170,10 +234,11 @@ type syncUnitVars struct {
 	LocalDir  string
 	ExecPath  string
 	Interval  string
+	Mode      string
 }
 
 // installSyncUnit creates the systemd user unit file and enables+starts the service.
-func installSyncUnit(cloudPath, localDir string) tea.Cmd {
+func installSyncUnit(cloudPath, localDir, modeFlag string) tea.Cmd {
 	return func() tea.Msg {
 		execPath, err := os.Executable()
 		if err != nil {
@@ -208,6 +273,7 @@ func installSyncUnit(cloudPath, localDir string) tea.Cmd {
 			LocalDir:  absLocal,
 			ExecPath:  execPath,
 			Interval:  (60 * time.Second).String(),
+			Mode:      modeFlag,
 		}
 
 		if err := os.MkdirAll(unitDir, 0o755); err != nil {

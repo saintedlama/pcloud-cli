@@ -46,7 +46,7 @@ type fileEntry struct {
 func New(api *pcloud.API, cloudRoot, localRoot string, log io.Writer) *Syncer {
 	return &Syncer{
 		api:       api,
-		cloudRoot: strings.TrimRight(cloudRoot, "/"),
+		cloudRoot: "/" + strings.Trim(cloudRoot, "/"),
 		localRoot: localRoot,
 		log:       log,
 	}
