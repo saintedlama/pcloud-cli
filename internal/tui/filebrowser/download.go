@@ -21,7 +21,7 @@ import (
 type DownloadDialog struct {
 	input       textinput.Model
 	spinner     spinner.Model
-	api         *pcloud.API
+	api         pcloud.CloudAPI
 	entry       msgs.Entry
 	downloading bool
 	done        bool
@@ -30,7 +30,7 @@ type DownloadDialog struct {
 }
 
 // NewDownloadDialog creates a download dialog for the given file entry.
-func NewDownloadDialog(api *pcloud.API, entry msgs.Entry) DownloadDialog {
+func NewDownloadDialog(api pcloud.CloudAPI, entry msgs.Entry) DownloadDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
 	ti.SetWidth(40)
@@ -137,7 +137,7 @@ func (m DownloadDialog) View() tea.View {
 }
 
 // downloadFile returns a command that fetches a download link and saves the file locally.
-func downloadFile(api *pcloud.API, remotePath, localPath string) tea.Cmd {
+func downloadFile(api pcloud.CloudAPI, remotePath, localPath string) tea.Cmd {
 	return func() tea.Msg {
 		link, err := api.GetFileLink(remotePath)
 		if err != nil {
@@ -158,7 +158,7 @@ func downloadFile(api *pcloud.API, remotePath, localPath string) tea.Cmd {
 type FolderDownloadDialog struct {
 	input       textinput.Model
 	spinner     spinner.Model
-	api         *pcloud.API
+	api         pcloud.CloudAPI
 	entry       msgs.Entry
 	downloading bool
 	done        bool
@@ -167,7 +167,7 @@ type FolderDownloadDialog struct {
 }
 
 // NewFolderDownloadDialog creates a download dialog for the given folder entry.
-func NewFolderDownloadDialog(api *pcloud.API, entry msgs.Entry) FolderDownloadDialog {
+func NewFolderDownloadDialog(api pcloud.CloudAPI, entry msgs.Entry) FolderDownloadDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
 	ti.SetWidth(40)
@@ -270,7 +270,7 @@ func (m FolderDownloadDialog) View() tea.View {
 }
 
 // downloadFolder fetches the folder as a zip via getziplink and extracts it locally.
-func downloadFolder(api *pcloud.API, entry msgs.Entry, destDir string) tea.Cmd {
+func downloadFolder(api pcloud.CloudAPI, entry msgs.Entry, destDir string) tea.Cmd {
 	return func() tea.Msg {
 		folderData, err := api.ListFolder(entry.Path, pcloud.ListFolderOptions{NoFiles: true})
 		if err != nil {

@@ -39,7 +39,7 @@ var (
 // PreviewDialog is a dialog-compatible tea.Model that fetches and displays
 // a scrollable file preview inside a viewport.
 type PreviewDialog struct {
-	api      *pcloud.API
+	api      pcloud.CloudAPI
 	entry    msgs.Entry
 	viewport viewport.Model
 	spinner  spinner.Model
@@ -50,7 +50,7 @@ type PreviewDialog struct {
 }
 
 // NewPreviewDialog builds a preview dialog for the given file entry.
-func NewPreviewDialog(api *pcloud.API, entry msgs.Entry, width, height int) PreviewDialog {
+func NewPreviewDialog(api pcloud.CloudAPI, entry msgs.Entry, width, height int) PreviewDialog {
 	// Reserve space for border (2) + title row (2) + help row (1).
 	vpW := width - 4
 	vpH := height - 7
@@ -164,7 +164,7 @@ func (m PreviewDialog) View() tea.View {
 }
 
 // fetchPreview is a tea.Cmd that fetches and renders the file preview.
-func fetchPreview(api *pcloud.API, entry msgs.Entry, width, height int) tea.Cmd {
+func fetchPreview(api pcloud.CloudAPI, entry msgs.Entry, width, height int) tea.Cmd {
 	return func() (result tea.Msg) {
 		// Recover from panics inside third-party decoders (e.g. bad JPEG/PNG
 		// data) so a corrupt file never crashes the TUI.

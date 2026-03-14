@@ -27,7 +27,7 @@ var folderActions = []action{
 
 // ActionsDialog lets the user pick an action to perform on a file or folder.
 type ActionsDialog struct {
-	api     *pcloud.API
+	api     pcloud.CloudAPI
 	entry   msgs.Entry
 	actions []action
 	cursor  int
@@ -39,7 +39,7 @@ type ActionsDialog struct {
 // Folder-specific actions are shown when entry.IsFolder is true.
 // width and height are the current terminal dimensions, passed through to
 // sub-dialogs (e.g. the preview dialog) that need them at construction time.
-func NewActionsDialog(api *pcloud.API, entry msgs.Entry, width, height int) ActionsDialog {
+func NewActionsDialog(api pcloud.CloudAPI, entry msgs.Entry, width, height int) ActionsDialog {
 	var actions []action
 	if entry.IsFolder {
 		actions = folderActions

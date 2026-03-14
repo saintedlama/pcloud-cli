@@ -21,14 +21,14 @@ const (
 // RenameDialog lets the user rename a file.
 type RenameDialog struct {
 	input textinput.Model
-	api   *pcloud.API
+	api   pcloud.CloudAPI
 	entry msgs.Entry
 	state renameState
 	err   error
 }
 
 // NewRenameDialog creates a rename dialog for the given file entry.
-func NewRenameDialog(api *pcloud.API, entry msgs.Entry) *RenameDialog {
+func NewRenameDialog(api pcloud.CloudAPI, entry msgs.Entry) *RenameDialog {
 	ti := textinput.New()
 	ti.CharLimit = 255
 	ti.SetWidth(40)
@@ -125,7 +125,7 @@ func (m *RenameDialog) View() tea.View {
 	return tea.NewView(s)
 }
 
-func renameFile(api *pcloud.API, entry msgs.Entry, toPath string) tea.Cmd {
+func renameFile(api pcloud.CloudAPI, entry msgs.Entry, toPath string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
 		if entry.IsFolder {

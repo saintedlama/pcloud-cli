@@ -21,14 +21,14 @@ const (
 // DeleteDialog asks for confirmation before deleting a file.
 type DeleteDialog struct {
 	input textinput.Model
-	api   *pcloud.API
+	api   pcloud.CloudAPI
 	entry msgs.Entry
 	state deleteState
 	err   error
 }
 
 // NewDeleteDialog creates a delete confirmation dialog.
-func NewDeleteDialog(api *pcloud.API, entry msgs.Entry) *DeleteDialog {
+func NewDeleteDialog(api pcloud.CloudAPI, entry msgs.Entry) *DeleteDialog {
 	ti := textinput.New()
 	ti.CharLimit = 1
 	ti.SetWidth(5)
@@ -124,7 +124,7 @@ func (m *DeleteDialog) View() tea.View {
 	return tea.NewView(s)
 }
 
-func deleteFile(api *pcloud.API, entry msgs.Entry) tea.Cmd {
+func deleteFile(api pcloud.CloudAPI, entry msgs.Entry) tea.Cmd {
 	return func() tea.Msg {
 		var err error
 		if entry.IsFolder {

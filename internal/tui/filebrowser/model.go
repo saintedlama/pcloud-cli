@@ -15,7 +15,7 @@ import (
 type Model struct {
 	list      list.Model
 	spinner   spinner.Model
-	api       *pcloud.API
+	api       pcloud.CloudAPI
 	path      string
 	history   []string
 	loading   bool
@@ -26,7 +26,7 @@ type Model struct {
 }
 
 // New creates a new filebrowser starting at root.
-func New(api *pcloud.API, width, height int) Model {
+func New(api pcloud.CloudAPI, width, height int) Model {
 	l := list.New(nil, tabularDelegate{}, width, height-4)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
@@ -218,7 +218,7 @@ func parentPath(p string) string {
 }
 
 // fetchFolder returns a command that loads the given path from the API.
-func fetchFolder(api *pcloud.API, path string) tea.Cmd {
+func fetchFolder(api pcloud.CloudAPI, path string) tea.Cmd {
 	return func() tea.Msg {
 		resp, err := api.ListFolder(path, pcloud.ListFolderOptions{})
 		if err != nil {

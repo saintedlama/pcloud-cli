@@ -21,14 +21,14 @@ const (
 // MoveDialog lets the user move a file to a different folder.
 type MoveDialog struct {
 	input textinput.Model
-	api   *pcloud.API
+	api   pcloud.CloudAPI
 	entry msgs.Entry
 	state moveState
 	err   error
 }
 
 // NewMoveDialog creates a move dialog for the given file entry.
-func NewMoveDialog(api *pcloud.API, entry msgs.Entry) *MoveDialog {
+func NewMoveDialog(api pcloud.CloudAPI, entry msgs.Entry) *MoveDialog {
 	ti := textinput.New()
 	ti.CharLimit = 500
 	ti.SetWidth(40)
@@ -127,7 +127,7 @@ func (m *MoveDialog) View() tea.View {
 	return tea.NewView(s)
 }
 
-func moveFile(api *pcloud.API, entry msgs.Entry, toPath string) tea.Cmd {
+func moveFile(api pcloud.CloudAPI, entry msgs.Entry, toPath string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
 		if entry.IsFolder {
