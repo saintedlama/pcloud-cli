@@ -1,11 +1,8 @@
 package preview
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
-
-	"charm.land/lipgloss/v2"
 )
 
 // PreviewType identifies which renderer handles a given file.
@@ -69,20 +66,4 @@ func GetPreviewType(name string) PreviewType {
 		return PreviewCode
 	}
 	return PreviewUnsupported
-}
-
-var previewErrorStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("240")).
-	Italic(true).
-	Padding(0, 1)
-
-// RenderError returns a styled terminal string for situations where a preview
-// cannot be shown. The returned string is intended to be set as viewport
-// content — callers should return it alongside a nil error.
-func RenderError(format string, args ...any) string {
-	msg := format
-	if len(args) > 0 {
-		msg = fmt.Sprintf(format, args...)
-	}
-	return previewErrorStyle.Render(msg)
 }
