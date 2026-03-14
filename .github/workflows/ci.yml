@@ -10,7 +10,6 @@ jobs:
   build-and-lint:
     runs-on: ubuntu-latest
     permissions:
-      checks: write
       contents: read
 
     steps:
@@ -23,46 +22,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Lint (gofmt)
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "The following files are not gofmt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Lint (go vet)
-        run: go vet ./...
-
       - name: Build
         run: go build ./...
 
-      - name: Test
-        uses: robherley/go-test-action@v0
+      - name: GoShip
+        uses: saintedlama/goship@v1
         with:
-          testArguments: -v -coverprofile=coverage.out ./...
-          omit: pie
-
-      - name: Coverage summary
-        if: always()
-        run: |
-          echo '## Test Coverage' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          go tool cover -func=coverage.out >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Generate HTML coverage report
-        if: always()
-        run: go tool cover -html=coverage.out -o coverage.html
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report
-          path: coverage.html
-          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
