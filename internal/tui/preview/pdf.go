@@ -91,7 +91,15 @@ func pdfStyledRender(sentences []pdf.Text) string {
 		}
 		prevY = s.Y
 
-		sb.WriteString(pdfMapStyle(s, bodySize).Render(s.S))
+		text := strings.Map(func(r rune) rune {
+			if r == '\uFFFD' {
+				return -1
+			}
+			return r
+		}, s.S)
+		if text != "" {
+			sb.WriteString(pdfMapStyle(s, bodySize).Render(text))
+		}
 	}
 	return sb.String()
 }

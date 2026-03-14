@@ -72,13 +72,16 @@ func renderMDBlock(n ast.Node, src []byte, sb *strings.Builder, indent int) {
 					renderMDBlock(ic, src, &itemText, indent+2)
 				}
 			}
-			prefix := "• "
+			var bullet string
 			if list.IsOrdered() {
-				prefix = fmt.Sprintf("%d. ", i)
+				bullet = fmt.Sprintf("%d. ", i)
 				i++
+			} else {
+				bullet = "• "
 			}
 			sb.WriteString(strings.Repeat(" ", indent))
-			sb.WriteString(styleListBullet.Render(prefix))
+			sb.WriteString(styleListBullet.Render(bullet))
+			sb.WriteString(" ")
 			sb.WriteString(strings.TrimRight(itemText.String(), "\n"))
 			sb.WriteString("\n")
 		}
