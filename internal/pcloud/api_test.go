@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---- normalizePath ---------------------------------------------------------
-
 func TestNormalizePath(t *testing.T) {
 	tests := []struct {
 		name string
@@ -33,8 +31,6 @@ func TestNormalizePath(t *testing.T) {
 		})
 	}
 }
-
-// ---- IsConfigured ----------------------------------------------------------
 
 func TestIsConfigured(t *testing.T) {
 	tests := []struct {
@@ -57,8 +53,6 @@ func TestIsConfigured(t *testing.T) {
 		})
 	}
 }
-
-// ---- Query -----------------------------------------------------------------
 
 // newTestServer builds a minimal pCloud-like JSON response and returns a test
 // server plus the API client pointing at it.
@@ -134,8 +128,6 @@ func TestQuery_NoAuthTokenWhenEmpty(t *testing.T) {
 	assert.False(t, capturedURL.Query().Has("auth"), "auth param should be absent when token is empty")
 }
 
-// ---- LoginWithPassword validation ------------------------------------------
-
 func TestLoginWithPassword_EmptyUsername(t *testing.T) {
 	api := &API{BaseURL: "https://api.pcloud.com"}
 	_, _, err := api.LoginWithPassword("", "secret")
@@ -149,8 +141,6 @@ func TestLoginWithPassword_EmptyPassword(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "password")
 }
-
-// ---- GetZipLinkByFolderID validation ---------------------------------------
 
 func TestGetZipLinkByFolderID_NegativeID(t *testing.T) {
 	api := &API{BaseURL: "https://api.pcloud.com", AuthToken: "tok"}

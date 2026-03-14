@@ -12,8 +12,6 @@ import (
 	"github.com/saintedlama/pcloud-cli/internal/pcloud/models"
 )
 
-// ---- formatSize ------------------------------------------------------------
-
 func TestFormatSize(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -34,8 +32,6 @@ func TestFormatSize(t *testing.T) {
 		})
 	}
 }
-
-// ---- toLocalRel ------------------------------------------------------------
 
 func TestToLocalRel(t *testing.T) {
 	s := &Syncer{cloudRoot: "/Music", localRoot: "/local"}
@@ -61,8 +57,6 @@ func TestToLocalRel_TrailingSlashOnRoot(t *testing.T) {
 	s := New(nil, "/Music/", "/local", os.Stderr)
 	assert.Equal(t, filepath.FromSlash("song.mp3"), s.toLocalRel("/Music/song.mp3"))
 }
-
-// ---- needsDownload ---------------------------------------------------------
 
 func TestNeedsDownload_AbsentFile(t *testing.T) {
 	dir := t.TempDir()
@@ -109,8 +103,6 @@ func TestNeedsDownload_ZeroModified(t *testing.T) {
 	assert.False(t, s.needsDownload(e), "zero mtime on existing file should not trigger download")
 }
 
-// ---- countLocalFiles -------------------------------------------------------
-
 func TestCountLocalFiles(t *testing.T) {
 	dir := t.TempDir()
 	sub := filepath.Join(dir, "sub")
@@ -127,8 +119,6 @@ func TestCountLocalFiles_MissingDir(t *testing.T) {
 	s := &Syncer{localRoot: "/nonexistent-dir-xyz"}
 	assert.Equal(t, 0, s.countLocalFiles())
 }
-
-// ---- pruneLocal ------------------------------------------------------------
 
 func TestPruneLocal_RemovesOrphanFiles(t *testing.T) {
 	dir := t.TempDir()
@@ -154,8 +144,6 @@ func TestPruneLocal_EmptyRemoteSetRemovesAll(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, deleted)
 }
-
-// ---- collectFiles ----------------------------------------------------------
 
 func TestCollectFiles_FlatList(t *testing.T) {
 	s := &Syncer{cloudRoot: "/Music", localRoot: "/local"}
