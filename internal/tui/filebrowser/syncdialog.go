@@ -14,6 +14,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
 )
 
 type syncDialogState int
@@ -25,20 +26,12 @@ const (
 	syncDone
 )
 
-type syncMode int
-
-const (
-	syncModeDown syncMode = iota
-	syncModeTwoWay
-)
-
 var syncModes = []struct {
 	label string
-	mode  syncMode
 	flag  string
 }{
-	{label: "down     (pCloud → local, polling)", mode: syncModeDown, flag: "down"},
-	{label: "two-way  (pCloud ↔ local, fs-events)", mode: syncModeTwoWay, flag: "two-way"},
+	{label: "down     (pCloud → local, polling)", flag: "down"},
+	{label: "two-way  (pCloud ↔ local, fs-events)", flag: "two-way"},
 }
 
 // syncDoneMsg carries the result of the systemd unit installation.
@@ -50,13 +43,13 @@ type syncDoneMsg struct {
 // SyncDialog prompts for a sync mode and a local directory, then installs a
 // systemd user service that continuously syncs the selected pCloud folder.
 type SyncDialog struct {
-	cloudPath  string
-	modeCursor int
-	input      textinput.Model
-	spinner    spinner.Model
-	state      syncDialogState
-	unitName   string
-	err        error
+	cloudPath string
+	modeList  selector.Selector
+	input     textinput.Model
+	spinner   spinner.Model
+	state     syncDialogState
+	unitName  string
+	err       error
 }
 
 // NewSyncDialog creates a sync setup dialog for the given folder path.
@@ -75,12 +68,17 @@ func NewSyncDialog(cloudPath string) *SyncDialog {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 
+	modeItems := make([]selector.Item, len(syncModes))
+	for i, sm := range syncModes {
+		modeItems[i] = selector.Item{Label: sm.label, Key: sm.flag}
+	}
+
 	return &SyncDialog{
-		cloudPath:  cloudPath,
-		modeCursor: 0,
-		input:      ti,
-		spinner:    s,
-		state:      syncModeSelect,
+		cloudPath: cloudPath,
+		modeList:  selector.New(modeItems, 0),
+		input:     ti,
+		spinner:   s,
+		state:     syncModeSelect,
 	}
 }
 
@@ -117,15 +115,8 @@ func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch m.state {
 		case syncModeSelect:
+			m.modeList, _ = m.modeList.Update(msg)
 			switch kMsg.String() {
-			case "up", "k":
-				if m.modeCursor > 0 {
-					m.modeCursor--
-				}
-			case "down", "j":
-				if m.modeCursor < len(syncModes)-1 {
-					m.modeCursor++
-				}
 			case "enter":
 				m.state = syncInput
 				return m, m.input.Focus()
@@ -143,7 +134,8 @@ func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Blur()
 				m.state = syncRunning
 				cloudPath := m.cloudPath
-				modeFlag := syncModes[m.modeCursor].flag
+				sel, _ := m.modeList.Selected()
+				modeFlag := sel.Key
 				return m, tea.Batch(m.spinner.Tick, installSyncUnit(cloudPath, localDir, modeFlag))
 			}
 		}
@@ -190,22 +182,16 @@ func (m *SyncDialog) View() tea.View {
 
 	if m.state == syncModeSelect {
 		sb.WriteString("  Sync mode:\n\n")
-		for i, sm := range syncModes {
-			if i == m.modeCursor {
-				sb.WriteString(selectedStyle.Render("  > " + sm.label))
-			} else {
-				sb.WriteString("    " + sm.label)
-			}
-			sb.WriteString("\n")
-		}
+		sb.WriteString(m.modeList.View())
 		sb.WriteString("\n")
 		sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 		return tea.NewView(sb.String())
 	}
 
 	// syncInput state
+	sel, _ := m.modeList.Selected()
 	sb.WriteString("  Mode:        ")
-	sb.WriteString(pathStyle.Render(syncModes[m.modeCursor].label))
+	sb.WriteString(pathStyle.Render(sel.Label))
 	sb.WriteString("\n")
 	sb.WriteString("  Local dir:   ")
 	sb.WriteString(m.input.View())

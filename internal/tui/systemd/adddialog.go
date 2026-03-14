@@ -16,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
 )
 
 type addState int
@@ -56,7 +57,7 @@ type addValidationErrMsg struct{ err error }
 // service. Steps: mode → pCloud path → local path → validate → install.
 type AddDaemonDialog struct {
 	api        pcloud.CloudAPI
-	modeCursor int
+	modeList   selector.Selector
 	cloudInput textinput.Model
 	localInput textinput.Model
 	spinner    spinner.Model
@@ -81,8 +82,14 @@ func NewAddDaemonDialog(api pcloud.CloudAPI) *AddDaemonDialog {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 
+	modeItems := make([]selector.Item, len(addSyncModes))
+	for i, sm := range addSyncModes {
+		modeItems[i] = selector.Item{Label: sm.label, Key: sm.flag}
+	}
+
 	return &AddDaemonDialog{
 		api:        api,
+		modeList:   selector.New(modeItems, 0),
 		cloudInput: ci,
 		localInput: li,
 		spinner:    s,
@@ -110,10 +117,11 @@ func (m *AddDaemonDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		case addValidatedMsg:
 			// Validation passed → start installing.
+			sel, _ := m.modeList.Selected()
 			m.state = addInstalling
 			return m, tea.Batch(
 				m.spinner.Tick,
-				installUnit(m.cloudInput.Value(), m.localInput.Value(), addSyncModes[m.modeCursor].flag),
+				installUnit(m.cloudInput.Value(), m.localInput.Value(), sel.Key),
 			)
 		case addValidationErrMsg:
 			m.err = msg.err
@@ -145,15 +153,8 @@ func (m *AddDaemonDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case addModeSelect:
+		m.modeList, _ = m.modeList.Update(msg)
 		switch kMsg.String() {
-		case "up", "k":
-			if m.modeCursor > 0 {
-				m.modeCursor--
-			}
-		case "down", "j":
-			if m.modeCursor < len(addSyncModes)-1 {
-				m.modeCursor++
-			}
 		case "enter":
 			m.state = addCloudInput
 			return m, m.cloudInput.Focus()
@@ -218,7 +219,8 @@ func (m *AddDaemonDialog) validatePaths() tea.Cmd {
 	api := m.api
 	cloudPath := strings.TrimSpace(m.cloudInput.Value())
 	localPath := strings.TrimSpace(m.localInput.Value())
-	modeFlag := addSyncModes[m.modeCursor].flag
+	sel, _ := m.modeList.Selected()
+	modeFlag := sel.Key
 
 	return func() tea.Msg {
 		localExists := func() bool {
@@ -291,22 +293,16 @@ func (m *AddDaemonDialog) View() tea.View {
 
 	if m.state == addModeSelect {
 		sb.WriteString("  Sync mode:\n\n")
-		for i, sm := range addSyncModes {
-			if i == m.modeCursor {
-				sb.WriteString(selectedRowStyle.Render("  > " + sm.label))
-			} else {
-				sb.WriteString("    " + sm.label)
-			}
-			sb.WriteString("\n")
-		}
+		sb.WriteString(m.modeList.View())
 		sb.WriteString("\n")
 		sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 		return tea.NewView(sb.String())
 	}
 
 	// Show confirmed mode on path-input screens.
+	confirmed, _ := m.modeList.Selected()
 	sb.WriteString("  Mode:        ")
-	sb.WriteString(dimStyle.Render(addSyncModes[m.modeCursor].label))
+	sb.WriteString(dimStyle.Render(confirmed.Label))
 	sb.WriteString("\n\n")
 
 	if m.state == addCloudInput {

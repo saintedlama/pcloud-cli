@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
 )
 
 type changeModeState int
@@ -28,7 +29,7 @@ type changeModeAppliedMsg struct{ err error }
 // ChangeModeDialog lets the user pick a new sync mode for an existing unit.
 type ChangeModeDialog struct {
 	unit    Unit
-	cursor  int
+	list    selector.Selector
 	spinner spinner.Model
 	state   changeModeState
 	err     error
@@ -37,17 +38,20 @@ type ChangeModeDialog struct {
 // NewChangeModeDialog creates the dialog pre-selected on the unit's current mode.
 func NewChangeModeDialog(unit Unit) *ChangeModeDialog {
 	cursor := 0
-	for i, m := range addSyncModes {
-		if m.flag == unit.Mode {
+	modeItems := make([]selector.Item, len(addSyncModes))
+	for i, sm := range addSyncModes {
+		label := sm.label
+		if sm.flag == unit.Mode {
+			label += "  (current)"
 			cursor = i
-			break
 		}
+		modeItems[i] = selector.Item{Label: label, Key: sm.flag}
 	}
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 	return &ChangeModeDialog{
 		unit:    unit,
-		cursor:  cursor,
+		list:    selector.New(modeItems, cursor),
 		spinner: s,
 		state:   changeModeSelect,
 	}
@@ -59,7 +63,8 @@ func (m *ChangeModeDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.state == changeModeDone || m.err != nil {
 		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, func() tea.Msg {
-				return msgs.CloseDialogMsg{Result: unitOpDoneMsg{msg: fmt.Sprintf("mode changed to %q", addSyncModes[m.cursor].flag)}}
+				sel, _ := m.list.Selected()
+				return msgs.CloseDialogMsg{Result: unitOpDoneMsg{msg: fmt.Sprintf("mode changed to %q", sel.Key)}}
 			}
 		}
 		return m, nil
@@ -87,20 +92,14 @@ func (m *ChangeModeDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	m.list, _ = m.list.Update(msg)
 	switch kMsg.String() {
-	case "up", "k":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-	case "down", "j":
-		if m.cursor < len(addSyncModes)-1 {
-			m.cursor++
-		}
 	case "enter":
+		sel, _ := m.list.Selected()
 		m.state = changeModeApplying
 		return m, tea.Batch(
 			m.spinner.Tick,
-			applyModeChange(m.unit, addSyncModes[m.cursor].flag),
+			applyModeChange(m.unit, sel.Key),
 		)
 	case "esc":
 		return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
@@ -119,7 +118,8 @@ func (m *ChangeModeDialog) View() tea.View {
 	sb.WriteString("\n\n")
 
 	if m.state == changeModeDone {
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Mode changed to %q and service restarted.", addSyncModes[m.cursor].flag)))
+		sel, _ := m.list.Selected()
+		sb.WriteString(successStyle.Render(fmt.Sprintf("  Mode changed to %q and service restarted.", sel.Key)))
 		sb.WriteString("\n\n")
 		sb.WriteString(helpStyle.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
@@ -140,19 +140,7 @@ func (m *ChangeModeDialog) View() tea.View {
 	}
 
 	sb.WriteString("  New mode:\n\n")
-	for i, sm := range addSyncModes {
-		prefix := "    "
-		label := sm.label
-		if sm.flag == m.unit.Mode {
-			label += "  (current)"
-		}
-		if i == m.cursor {
-			sb.WriteString(selectedRowStyle.Render(prefix + "> " + label))
-		} else {
-			sb.WriteString(prefix + "  " + label)
-		}
-		sb.WriteString("\n")
-	}
+	sb.WriteString(m.list.View())
 	sb.WriteString("\n")
 	sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 	return tea.NewView(sb.String())

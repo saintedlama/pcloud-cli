@@ -20,7 +20,7 @@ func TestActionsDialog_FileActions_DefaultCursor(t *testing.T) {
 	d := NewActionsDialog(api, entry, 80, 24)
 	// First enabled action for a non-.txt file with no preview support is "Download" (idx 1),
 	// but for a .txt file preview IS supported so cursor starts at index 0 ("Preview").
-	assert.Equal(t, 0, d.cursor)
+	assert.Equal(t, 0, d.list.Cursor())
 }
 
 func TestActionsDialog_Navigation_JK(t *testing.T) {
@@ -28,22 +28,22 @@ func TestActionsDialog_Navigation_JK(t *testing.T) {
 	entry := msgs.Entry{Path: "/foo/bar.txt", Name: "bar.txt"}
 
 	m := NewActionsDialog(api, entry, 80, 24)
-	assert.Equal(t, 0, m.cursor)
+	assert.Equal(t, 0, m.list.Cursor())
 
 	// j moves down.
 	updated, _ := m.Update(jKey())
 	m = updated.(ActionsDialog)
-	assert.Equal(t, 1, m.cursor)
+	assert.Equal(t, 1, m.list.Cursor())
 
 	// k moves back up.
 	updated, _ = m.Update(kKey())
 	m = updated.(ActionsDialog)
-	assert.Equal(t, 0, m.cursor)
+	assert.Equal(t, 0, m.list.Cursor())
 
 	// k at top stays at 0.
 	updated, _ = m.Update(kKey())
 	m = updated.(ActionsDialog)
-	assert.Equal(t, 0, m.cursor)
+	assert.Equal(t, 0, m.list.Cursor())
 }
 
 func TestActionsDialog_SelectDelete_ShowsDeleteDialog(t *testing.T) {
@@ -56,7 +56,7 @@ func TestActionsDialog_SelectDelete_ShowsDeleteDialog(t *testing.T) {
 		m, _ := tea.Model(d).Update(jKey())
 		d = m.(ActionsDialog)
 	}
-	assert.Equal(t, 4, d.cursor)
+	assert.Equal(t, 4, d.list.Cursor())
 
 	_, cmd := tea.Model(d).Update(enterKey())
 	require.NotNil(t, cmd)
