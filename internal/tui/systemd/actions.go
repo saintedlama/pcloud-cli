@@ -18,6 +18,7 @@ var unitActions = []sysdAction{
 	{label: "Stop", key: "stop"},
 	{label: "Enable", key: "enable"},
 	{label: "Disable", key: "disable"},
+	{label: "Change mode", key: "change-mode"},
 	{label: "Logs", key: "logs"},
 	{label: "Remove", key: "remove"},
 }
@@ -85,6 +86,11 @@ func (m ActionsDialog) runSelected() (tea.Model, tea.Cmd) {
 		name, op := m.unit.Name, a.key
 		return m, func() tea.Msg {
 			return runSystemctlOp(op, name)
+		}
+	case "change-mode":
+		dlg := NewChangeModeDialog(m.unit)
+		return m, func() tea.Msg {
+			return msgs.ShowDialogMsg{Content: dlg}
 		}
 	case "logs":
 		dlg := NewLogsDialog(m.unit.Name, m.width, m.height)
