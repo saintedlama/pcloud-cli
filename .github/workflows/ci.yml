@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-lint:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -38,15 +41,11 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Test
-        run: |
-          set -o pipefail
-          go test -json -v -coverprofile=coverage.out ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+        uses: robherley/go-test-action@v0
+        with:
+          testArguments: -v -coverprofile=coverage.out ./...
+          omit: pie
 
       - name: Coverage summary
         if: always()
@@ -56,10 +55,14 @@ jobs:
           go tool cover -func=coverage.out >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload test log
+      - name: Generate HTML coverage report
+        if: always()
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-results
-          path: /tmp/gotest.log
+          name: coverage-report
+          path: coverage.html
           if-no-files-found: ignore
