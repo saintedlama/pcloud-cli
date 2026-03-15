@@ -84,12 +84,6 @@ func (m PreviewDialog) Init() tea.Cmd {
 
 func (m PreviewDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc", "q":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
-		}
-
 	case msgs.PreviewReadyMsg:
 		m.loading = false
 		m.viewport.SetContent(msg.Content)
@@ -134,7 +128,7 @@ func (m PreviewDialog) View() tea.View {
 		scrollInfo = fmt.Sprintf(" %d%%", pct)
 	}
 
-	help := previewHelpStyle.Render("↑/↓ scroll  |  esc/q close") + scrollInfo
+	help := previewHelpStyle.Render("↑/↓ scroll  |  esc close") + scrollInfo
 
 	inner := title + "\n\n" + body + "\n" + help
 

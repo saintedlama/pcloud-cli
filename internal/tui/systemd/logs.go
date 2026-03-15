@@ -9,7 +9,6 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
 
 // logsReadyMsg carries the journal output for a unit.
@@ -35,7 +34,7 @@ var (
 
 // LogsDialog is a tea.Model that renders journal output for a systemd unit
 // in a scrollable viewport. It is shown via msgs.ShowDialogMsg and closes with
-// msgs.CloseDialogMsg when the user presses q or esc.
+// msgs.CloseDialogMsg when the user presses esc.
 type LogsDialog struct {
 	unit    string
 	vp      viewport.Model
@@ -84,8 +83,6 @@ func (m LogsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "esc", "q":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		case "r":
 			m.loading = true
 			unit := m.unit
@@ -131,7 +128,7 @@ func (m LogsDialog) View() tea.View {
 		pct := int(m.vp.ScrollPercent() * 100)
 		scrollInfo = fmt.Sprintf("  %d%%", pct)
 	}
-	help := logsHelpStyle.Render("↑/↓ scroll  |  r refresh  |  esc/q close") + scrollInfo
+	help := logsHelpStyle.Render("↑/↓ scroll  |  r refresh  |  esc close") + scrollInfo
 
 	inner := title + "\n\n" + body + "\n\n" + help
 

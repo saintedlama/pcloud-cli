@@ -120,8 +120,6 @@ func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.state = syncInput
 				return m, m.input.Focus()
-			case "esc":
-				return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 			}
 			return m, nil
 

@@ -72,12 +72,12 @@ func NewAddDaemonDialog(api pcloud.CloudAPI) *AddDaemonDialog {
 	ci := textinput.New()
 	ci.CharLimit = 512
 	ci.SetWidth(40)
-	ci.Placeholder = "/my-folder"
+	ci.Placeholder = "/path/to/cloud/folder"
 
 	li := textinput.New()
 	li.CharLimit = 512
 	li.SetWidth(40)
-	li.Placeholder = "~/my-folder"
+	li.Placeholder = "dir or /path/to/my/dir"
 
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
@@ -158,8 +158,6 @@ func (m *AddDaemonDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.state = addCloudInput
 			return m, m.cloudInput.Focus()
-		case "esc":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		}
 
 	case addCloudInput:
@@ -179,8 +177,6 @@ func (m *AddDaemonDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.state = addLocalInput
 			return m, m.localInput.Focus()
-		case "esc":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		default:
 			var cmd tea.Cmd
 			m.cloudInput, cmd = m.cloudInput.Update(msg)
@@ -199,8 +195,6 @@ func (m *AddDaemonDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.spinner.Tick,
 				m.validatePaths(),
 			)
-		case "esc":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		default:
 			var cmd tea.Cmd
 			m.localInput, cmd = m.localInput.Update(msg)
@@ -320,6 +314,11 @@ func (m *AddDaemonDialog) View() tea.View {
 	sb.WriteString("  Local path:  ")
 	sb.WriteString(m.localInput.View())
 	sb.WriteString("\n\n")
+	cwd, err := os.Getwd()
+	if err == nil {
+		sb.WriteString(helpStyle.Render("  Relative paths are resolved from the current directory: " + cwd))
+		sb.WriteString("\n")
+	}
 	sb.WriteString(helpStyle.Render("  Enter confirm  |  Esc cancel"))
 	return tea.NewView(sb.String())
 }
@@ -371,7 +370,11 @@ func installUnit(cloudPath, localDir, modeFlag string) tea.Cmd {
 		}
 		unitName := "pcloud-sync-" + sanitized + ".service"
 
-		unitDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return addDoneMsg{err: fmt.Errorf("could not determine home directory: %w", err)}
+		}
+		unitDir := filepath.Join(homeDir, ".config", "systemd", "user")
 		unitPath := filepath.Join(unitDir, unitName)
 
 		quoteFn := func(s string) string {
