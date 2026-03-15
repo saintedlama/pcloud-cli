@@ -13,19 +13,13 @@ import (
 	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
-// historyEntry records the path and cursor position of a visited directory.
-type historyEntry struct {
-	path   string
-	cursor int
-}
-
 // Model is the filebrowser component.
 type Model struct {
 	list          list.Model
 	spinner       spinner.Model
 	api           pcloud.CloudAPI
 	path          string
-	history       []historyEntry
+	history       history
 	restoreCursor int
 	loading       bool
 	statusMsg     string
@@ -74,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.CloseDialogMsg:
 		// Navigate into a folder (from the actions dialog "Open" item).
 		if nav, ok := msg.Result.(msgs.NavigateFolderResult); ok {
-			m.history = append(m.history, historyEntry{path: m.path, cursor: m.list.Index()})
+			m.history.Push(m.path, m.list.Index())
 			m.restoreCursor = -1
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, nav.Path))
@@ -204,26 +198,26 @@ func (m Model) View() string {
 
 // navigateInto pushes the current path and cursor onto history and loads the given path.
 func (m Model) navigateInto(path string) (Model, tea.Cmd) {
-	m.history = append(m.history, historyEntry{path: m.path, cursor: m.list.Index()})
+	m.history.Push(m.path, m.list.Index())
 	m.restoreCursor = -1
 	m.loading = true
 	return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, path))
 }
 
-// navigateUp pops history or computes the parent path and navigates there.
+// navigateUp pops history and navigates to the recorded path.
+// When history is empty Pop returns cursor 0 and the path is computed from the current path.
 func (m Model) navigateUp() (Model, tea.Cmd) {
-	var target string
-	if len(m.history) > 0 {
-		entry := m.history[len(m.history)-1]
-		m.history = m.history[:len(m.history)-1]
-		target = entry.path
-		m.restoreCursor = entry.cursor
-	} else {
-		target = parentPath(m.path)
-		if target == m.path {
-			return m, nil
-		}
+	// We reached the root level
+	if m.path == "/" {
+		m.loading = false
+		return m, nil
 	}
+
+	entry := m.history.Pop()
+	m.restoreCursor = entry.cursor
+
+	target := parentPath(m.path)
+
 	m.loading = true
 	return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, target))
 }

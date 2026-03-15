@@ -76,8 +76,8 @@ func TestModel_CloseDialogMsg_NavigateFolderResult_PushesHistory(t *testing.T) {
 
 	assert.True(t, m2.loading)
 	assert.NotNil(t, cmd)
-	require.Len(t, m2.history, 1)
-	assert.Equal(t, "/music", m2.history[0])
+	require.Equal(t, 1, len(m2.history.Paths()))
+	assert.Equal(t, "/music", m2.history.Paths()[0])
 }
 
 func TestModel_CloseDialogMsg_NilResult_NoOp(t *testing.T) {
