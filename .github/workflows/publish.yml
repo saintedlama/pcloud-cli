@@ -65,7 +65,7 @@ jobs:
           CGO_ENABLED: "0"
         run: |
           ARTIFACT="pcloud-cli_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.suffix }}"
-          go build -trimpath -ldflags="-s -w" -o "${ARTIFACT}" ./cmd/pcloud-cli
+          go build -trimpath -ldflags="-s -w" -o "${ARTIFACT}" .
           echo "ARTIFACT=${ARTIFACT}" >> "$GITHUB_ENV"
 
       - name: Upload artifact to release

@@ -15,18 +15,32 @@ File Preview
 Sync Daemon Management
 ![Daemon management](screenshots/daemon_management.png)
 
-## Build
-
-Clone the repository and run:
-
-```sh
-make build
-```
-
 ## Installation
 
+**Download a pre-built binary** from the [releases page](https://github.com/saintedlama/pcloud-cli/releases/latest).
+Builds are provided for Linux, macOS, and Windows (amd64 and arm64).
+Download the archive for your platform, extract it, and place the `pcloud-cli` binary somewhere on your `PATH`.
+
+Or install with Go:
+
 ```sh
-make install
+go install github.com/saintedlama/pcloud-cli@latest
+```
+
+## Contributing & Building from Source
+
+Clone the repository and run `make build` to compile the binary locally — Go 1.26 or later is required.
+
+Run `go test ./...` to execute the test suite, and `make fmt` to verify formatting before opening a pull request.
+
+The CI pipeline enforces `gofmt`, `go vet`, a full build, and all tests, so running those locally first is the fastest way to spot issues.
+
+```sh
+git clone https://github.com/saintedlama/pcloud-cli.git
+cd pcloud-cli
+make build   # produces ./pcloud-cli
+go test ./...
+make install # optional, moves binary to $GOPATH/bin or $GOBIN
 ```
 
 ## Setup
@@ -152,3 +166,15 @@ pcloud-cli tui
 ```
 
 Opens a terminal UI for browsing, downloading, and managing files.
+
+## Build
+
+Clone the repository and run:
+
+```sh
+make build
+```
+
+```sh
+make install
+```

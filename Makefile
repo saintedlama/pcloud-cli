@@ -1,6 +1,5 @@
 APPNAME = pcloud-cli
 PACKAGE = github.com/saintedlama/${APPNAME}
-MAIN=cmd/${APPNAME}/main.go
 
 .PHONY: all clean build install fmt lint help
 .DEFAULT_GOAL := help
@@ -12,7 +11,7 @@ clean:
 	rm ./${APPNAME} || true
 
 build: ## Build pcloud-cli binary
-	go build -o ${APPNAME} ${MAIN}
+	go build -o ${APPNAME} .
 
 install: ## Install pcloud-cli binary
 	go install ${PACKAGE}

@@ -41,19 +41,19 @@ var (
 
 	// Path is the muted italic style used to display file/folder paths.
 	Path = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("244")).
-			Italic(true).
-			Padding(0, 1)
+		Foreground(lipgloss.Color("244")).
+		Italic(true).
+		Padding(0, 1)
 
 	// Folder is the bright-blue style used for folder names in list views.
 	Folder = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("12"))
+		Foreground(lipgloss.Color("12"))
 
 	// Normal is a plain unstyled default used for regular file names.
 	Normal = lipgloss.NewStyle()
 
 	// DialogTitle is the bright-yellow bold style used for dialog section headings.
 	DialogTitle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("11"))
+			Bold(true).
+			Foreground(lipgloss.Color("11"))
 )
