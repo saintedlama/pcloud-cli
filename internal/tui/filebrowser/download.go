@@ -15,6 +15,7 @@ import (
 	"github.com/saintedlama/pcloud-cli/internal/helpers"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 // DownloadDialog is a standalone tea.Model for the file-download prompt.
@@ -99,24 +100,24 @@ func (m DownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m DownloadDialog) View() tea.View {
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("pCloud") + "  ")
-	sb.WriteString(dialogTitleStyle.Render("Download File"))
+	sb.WriteString(tuistyles.Title.Render("pCloud") + "  ")
+	sb.WriteString(tuistyles.DialogTitle.Render("Download File"))
 	sb.WriteString("\n\n")
 	sb.WriteString("  Source:   ")
-	sb.WriteString(pathStyle.Render(m.entry.Path))
+	sb.WriteString(tuistyles.Path.Render(m.entry.Path))
 	sb.WriteString("\n\n")
 
 	if m.done {
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
+		sb.WriteString(tuistyles.Success.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		sb.WriteString(tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		// Allow dismiss on next keypress.
 		m.done = true
 		return tea.NewView(sb.String())
@@ -132,7 +133,7 @@ func (m DownloadDialog) View() tea.View {
 	sb.WriteString("  Save as:  ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
-	sb.WriteString(helpStyle.Render("  Enter to confirm  |  Esc to cancel"))
+	sb.WriteString(tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel"))
 	return tea.NewView(sb.String())
 }
 
@@ -234,24 +235,24 @@ func (m FolderDownloadDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m FolderDownloadDialog) View() tea.View {
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("pCloud") + "  ")
-	sb.WriteString(dialogTitleStyle.Render("Download Folder"))
+	sb.WriteString(tuistyles.Title.Render("pCloud") + "  ")
+	sb.WriteString(tuistyles.DialogTitle.Render("Download Folder"))
 	sb.WriteString("\n\n")
 	sb.WriteString("  Source:      ")
-	sb.WriteString(pathStyle.Render(m.entry.Path))
+	sb.WriteString(tuistyles.Path.Render(m.entry.Path))
 	sb.WriteString("\n\n")
 
 	if m.done {
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
+		sb.WriteString(tuistyles.Success.Render(fmt.Sprintf("  Downloaded: %s", m.localPath)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		sb.WriteString(tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
@@ -265,7 +266,7 @@ func (m FolderDownloadDialog) View() tea.View {
 	sb.WriteString("  Save to:     ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
-	sb.WriteString(helpStyle.Render("  Enter to confirm  |  Esc to cancel"))
+	sb.WriteString(tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel"))
 	return tea.NewView(sb.String())
 }
 

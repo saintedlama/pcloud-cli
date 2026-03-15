@@ -2,14 +2,11 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
-var dialogBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("62")).
-	Padding(1, 2)
+var dialogBoxStyle = tuistyles.DialogBorder.Padding(1, 2)
 
 // dialogModel wraps a dialog content model on top of a background model.
 // Keys and messages are forwarded to the dialog content model.

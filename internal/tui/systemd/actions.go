@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type sysdAction struct {
@@ -107,7 +108,7 @@ func (m ActionsDialog) runSelected() (tea.Model, tea.Cmd) {
 }
 
 func (m ActionsDialog) View() tea.View {
-	s := titleStyle.Render("pCloud") + "  "
+	s := tuistyles.Title.Render("pCloud") + "  "
 	s += sectionStyle.Render("Sync Daemon Actions")
 	s += "\n\n"
 	s += "  Unit:      " + dimStyle.Render(m.unit.ShortName()) + "\n"
@@ -117,6 +118,6 @@ func (m ActionsDialog) View() tea.View {
 
 	s += m.list.View()
 	s += "\n"
-	s += helpStyle.Render("  ↑/↓ select  |  enter confirm  |  esc cancel")
+	s += tuistyles.Help.Render("  ↑/↓ select  |  enter confirm  |  esc cancel")
 	return tea.NewView(s)
 }

@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type syncDialogState int
@@ -150,24 +151,24 @@ func (m *SyncDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *SyncDialog) View() tea.View {
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("pCloud") + "  ")
-	sb.WriteString(dialogTitleStyle.Render("Create Sync Daemon"))
+	sb.WriteString(tuistyles.Title.Render("pCloud") + "  ")
+	sb.WriteString(tuistyles.DialogTitle.Render("Create Sync Daemon"))
 	sb.WriteString("\n\n")
 	sb.WriteString("  Cloud path:  ")
-	sb.WriteString(pathStyle.Render(m.cloudPath))
+	sb.WriteString(tuistyles.Path.Render(m.cloudPath))
 	sb.WriteString("\n\n")
 
 	if m.state == syncDone {
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Service %s enabled and started.", m.unitName)))
+		sb.WriteString(tuistyles.Success.Render(fmt.Sprintf("  Service %s enabled and started.", m.unitName)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		sb.WriteString(tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
@@ -182,19 +183,19 @@ func (m *SyncDialog) View() tea.View {
 		sb.WriteString("  Sync mode:\n\n")
 		sb.WriteString(m.modeList.View())
 		sb.WriteString("\n")
-		sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
+		sb.WriteString(tuistyles.Help.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 		return tea.NewView(sb.String())
 	}
 
 	// syncInput state
 	sel, _ := m.modeList.Selected()
 	sb.WriteString("  Mode:        ")
-	sb.WriteString(pathStyle.Render(sel.Label))
+	sb.WriteString(tuistyles.Path.Render(sel.Label))
 	sb.WriteString("\n")
 	sb.WriteString("  Local dir:   ")
 	sb.WriteString(m.input.View())
 	sb.WriteString("\n\n")
-	sb.WriteString(helpStyle.Render("  Enter to confirm  |  Esc to cancel"))
+	sb.WriteString(tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel"))
 	return tea.NewView(sb.String())
 }
 

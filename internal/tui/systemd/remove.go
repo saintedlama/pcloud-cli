@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type removeState int
@@ -93,22 +94,22 @@ func (m *RemoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *RemoveDialog) View() tea.View {
-	s := titleStyle.Render("pCloud") + "  "
-	s += errorStyle.Render("Remove Sync Daemon")
+	s := tuistyles.Title.Render("pCloud") + "  "
+	s += tuistyles.Error.Render("Remove Sync Daemon")
 	s += "\n\n"
 	s += "  Unit: " + dimStyle.Render(m.unit.ShortName()) + "\n\n"
 
 	if m.state == removeDone {
-		s += successStyle.Render("  Removed successfully")
+		s += tuistyles.Success.Render("  Removed successfully")
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
 	if m.err != nil {
-		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
+		s += tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
@@ -117,11 +118,11 @@ func (m *RemoveDialog) View() tea.View {
 		return tea.NewView(s)
 	}
 
-	s += errorStyle.Render("  This will stop, disable, and delete the unit file.") + "\n"
-	s += errorStyle.Render("  This action cannot be undone!") + "\n\n"
+	s += tuistyles.Error.Render("  This will stop, disable, and delete the unit file.") + "\n"
+	s += tuistyles.Error.Render("  This action cannot be undone!") + "\n\n"
 	s += "  Type Y to confirm: " + m.input.View()
 	s += "\n\n"
-	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
+	s += tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel")
 	return tea.NewView(s)
 }
 

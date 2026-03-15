@@ -17,6 +17,7 @@ import (
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type addState int
@@ -253,21 +254,21 @@ func (m *AddDaemonDialog) validatePaths() tea.Cmd {
 
 func (m *AddDaemonDialog) View() tea.View {
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("pCloud") + "  ")
+	sb.WriteString(tuistyles.Title.Render("pCloud") + "  ")
 	sb.WriteString(sectionStyle.Render("Add Sync Daemon"))
 	sb.WriteString("\n\n")
 
 	if m.state == addDone {
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Service %s enabled and started.", m.unitName)))
+		sb.WriteString(tuistyles.Success.Render(fmt.Sprintf("  Service %s enabled and started.", m.unitName)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		sb.WriteString(tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
@@ -289,7 +290,7 @@ func (m *AddDaemonDialog) View() tea.View {
 		sb.WriteString("  Sync mode:\n\n")
 		sb.WriteString(m.modeList.View())
 		sb.WriteString("\n")
-		sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
+		sb.WriteString(tuistyles.Help.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 		return tea.NewView(sb.String())
 	}
 
@@ -303,7 +304,7 @@ func (m *AddDaemonDialog) View() tea.View {
 		sb.WriteString("  pCloud path: ")
 		sb.WriteString(m.cloudInput.View())
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Enter confirm  |  Esc cancel"))
+		sb.WriteString(tuistyles.Help.Render("  Enter confirm  |  Esc cancel"))
 		return tea.NewView(sb.String())
 	}
 
@@ -316,10 +317,10 @@ func (m *AddDaemonDialog) View() tea.View {
 	sb.WriteString("\n\n")
 	cwd, err := os.Getwd()
 	if err == nil {
-		sb.WriteString(helpStyle.Render("  Relative paths are resolved from the current directory: " + cwd))
+		sb.WriteString(tuistyles.Help.Render("  Relative paths are resolved from the current directory: " + cwd))
 		sb.WriteString("\n")
 	}
-	sb.WriteString(helpStyle.Render("  Enter confirm  |  Esc cancel"))
+	sb.WriteString(tuistyles.Help.Render("  Enter confirm  |  Esc cancel"))
 	return tea.NewView(sb.String())
 }
 

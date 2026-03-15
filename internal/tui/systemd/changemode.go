@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type changeModeState int
@@ -110,7 +111,7 @@ func (m *ChangeModeDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *ChangeModeDialog) View() tea.View {
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("pCloud") + "  ")
+	sb.WriteString(tuistyles.Title.Render("pCloud") + "  ")
 	sb.WriteString(sectionStyle.Render("Change Sync Mode"))
 	sb.WriteString("\n\n")
 	sb.WriteString("  Unit: ")
@@ -119,16 +120,16 @@ func (m *ChangeModeDialog) View() tea.View {
 
 	if m.state == changeModeDone {
 		sel, _ := m.list.Selected()
-		sb.WriteString(successStyle.Render(fmt.Sprintf("  Mode changed to %q and service restarted.", sel.Key)))
+		sb.WriteString(tuistyles.Success.Render(fmt.Sprintf("  Mode changed to %q and service restarted.", sel.Key)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
 	if m.err != nil {
-		sb.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %v", m.err)))
+		sb.WriteString(tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err)))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("  Press any key to continue"))
+		sb.WriteString(tuistyles.Help.Render("  Press any key to continue"))
 		return tea.NewView(sb.String())
 	}
 
@@ -142,7 +143,7 @@ func (m *ChangeModeDialog) View() tea.View {
 	sb.WriteString("  New mode:\n\n")
 	sb.WriteString(m.list.View())
 	sb.WriteString("\n")
-	sb.WriteString(helpStyle.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
+	sb.WriteString(tuistyles.Help.Render("  ↑/↓ select  |  Enter confirm  |  Esc cancel"))
 	return tea.NewView(sb.String())
 }
 

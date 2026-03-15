@@ -6,6 +6,7 @@ import (
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/preview"
 	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type action struct {
@@ -132,16 +133,16 @@ func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ActionsDialog) View() tea.View {
-	s := titleStyle.Render("pCloud") + "  "
-	s += dialogTitleStyle.Render("Actions")
+	s := tuistyles.Title.Render("pCloud") + "  "
+	s += tuistyles.DialogTitle.Render("Actions")
 	s += "\n\n"
 	kind := "File"
 	if m.entry.IsFolder {
 		kind = "Folder"
 	}
-	s += "  " + kind + ": " + pathStyle.Render(m.entry.Path) + "\n\n"
+	s += "  " + kind + ": " + tuistyles.Path.Render(m.entry.Path) + "\n\n"
 	s += m.list.View()
 	s += "\n"
-	s += helpStyle.Render("  up/down select  |  enter confirm  |  esc cancel")
+	s += tuistyles.Help.Render("  up/down select  |  enter confirm  |  esc cancel")
 	return tea.NewView(s)
 }

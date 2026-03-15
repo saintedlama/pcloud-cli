@@ -7,33 +7,14 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/preview"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 var (
-	previewBorderStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("62")) // matches selection accent
-
-	previewTitleStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("14")).
-				Padding(0, 1)
-
-	previewHelpStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("241")).
-				Padding(0, 1)
-
-	previewErrorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("9")).
-				Padding(0, 1)
-
-	previewLoadingStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("244")).
-				Padding(0, 1)
+	previewBorderStyle = tuistyles.DialogBorder
 )
 
 // PreviewDialog is a dialog-compatible tea.Model that fetches and displays
@@ -110,14 +91,14 @@ func (m PreviewDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m PreviewDialog) View() tea.View {
-	title := previewTitleStyle.Render("Preview") + "  " + pathStyle.Render(m.entry.Name)
+	title := tuistyles.Title.Render("Preview") + "  " + tuistyles.Path.Render(m.entry.Name)
 
 	var body string
 	switch {
 	case m.err != nil:
-		body = previewErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
+		body = tuistyles.Error.Render(fmt.Sprintf("Error: %v", m.err))
 	case m.loading:
-		body = previewLoadingStyle.Render("  " + m.spinner.View() + "  Loading preview…")
+		body = tuistyles.Help.Render("  " + m.spinner.View() + "  Loading preview…")
 	default:
 		body = m.viewport.View()
 	}
@@ -128,7 +109,7 @@ func (m PreviewDialog) View() tea.View {
 		scrollInfo = fmt.Sprintf(" %d%%", pct)
 	}
 
-	help := previewHelpStyle.Render("↑/↓ scroll  |  esc close") + scrollInfo
+	help := tuistyles.Help.Render("↑/↓ scroll  |  esc close") + scrollInfo
 
 	inner := title + "\n\n" + body + "\n" + help
 

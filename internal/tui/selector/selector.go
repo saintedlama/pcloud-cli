@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 // Unselected is the sentinel cursor value meaning no item is highlighted.
@@ -46,12 +47,9 @@ var (
 	itemNormalStyle = lipgloss.NewStyle().
 			PaddingLeft(2).
 			PaddingRight(2)
-	itemSelectStyle = lipgloss.NewStyle().
+	itemSelectStyle = tuistyles.Selection.
 			PaddingLeft(2).
-			PaddingRight(2).
-			Bold(true).
-			Foreground(lipgloss.Color("231")).
-			Background(lipgloss.Color("62"))
+			PaddingRight(2)
 	itemDangerSelectStyle = lipgloss.NewStyle().
 				PaddingLeft(2).
 				PaddingRight(2).

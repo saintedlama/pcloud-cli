@@ -8,7 +8,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 // logsReadyMsg carries the journal output for a unit.
@@ -16,21 +16,6 @@ type logsReadyMsg struct {
 	unit    string
 	content string
 }
-
-var (
-	logsBorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("62"))
-
-	logsTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("14")).
-			Padding(0, 1)
-
-	logsHelpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			Padding(0, 1)
-)
 
 // LogsDialog is a tea.Model that renders journal output for a systemd unit
 // in a scrollable viewport. It is shown via msgs.ShowDialogMsg and closes with
@@ -114,7 +99,7 @@ func (m LogsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m LogsDialog) View() tea.View {
 	unitShort := strings.TrimPrefix(m.unit, "pcloud-sync-")
 	unitShort = strings.TrimSuffix(unitShort, ".service")
-	title := logsTitleStyle.Render("Logs") + "  " + logsTitleStyle.Render(unitShort)
+	title := tuistyles.Title.Render("Logs") + "  " + tuistyles.Title.Render(unitShort)
 
 	var body string
 	if m.loading {
@@ -128,7 +113,7 @@ func (m LogsDialog) View() tea.View {
 		pct := int(m.vp.ScrollPercent() * 100)
 		scrollInfo = fmt.Sprintf("  %d%%", pct)
 	}
-	help := logsHelpStyle.Render("↑/↓ scroll  |  r refresh  |  esc close") + scrollInfo
+	help := tuistyles.Help.Render("↑/↓ scroll  |  r refresh  |  esc close") + scrollInfo
 
 	inner := title + "\n\n" + body + "\n\n" + help
 
@@ -147,7 +132,7 @@ func (m LogsDialog) View() tea.View {
 	}
 	inner = strings.Join(lines[:innerH], "\n")
 
-	bordered := logsBorderStyle.Width(innerW).Height(innerH).Render(inner)
+	bordered := tuistyles.DialogBorder.Width(innerW).Height(innerH).Render(inner)
 	return tea.NewView(bordered)
 }
 

@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 // item implements list.Item for a file or folder entry.
@@ -67,11 +68,11 @@ func (d tabularDelegate) Render(w io.Writer, m list.Model, index int, listItem l
 	row := fmt.Sprintf(" %s%s  %s  %s", prefix, name, sizeStr, dateStr)
 
 	if index == m.Index() {
-		fmt.Fprint(w, selectedStyle.Render(row))
+		fmt.Fprint(w, tuistyles.Selection.Render(row))
 	} else if i.entry.IsFolder || i.entry.Name == ".." {
-		fmt.Fprint(w, folderStyle.Render(row))
+		fmt.Fprint(w, tuistyles.Folder.Render(row))
 	} else {
-		fmt.Fprint(w, normalStyle.Render(row))
+		fmt.Fprint(w, tuistyles.Normal.Render(row))
 	}
 }
 

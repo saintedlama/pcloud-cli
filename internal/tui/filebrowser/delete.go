@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type deleteState int
@@ -89,26 +90,26 @@ func (m *DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *DeleteDialog) View() tea.View {
-	s := titleStyle.Render("pCloud") + "  "
-	s += errorStyle.Render("Delete File")
+	s := tuistyles.Title.Render("pCloud") + "  "
+	s += tuistyles.Error.Render("Delete File")
 	s += "\n\n"
 	kind := "File"
 	if m.entry.IsFolder {
 		kind = "Folder"
 	}
-	s += "  " + kind + ": " + pathStyle.Render(m.entry.Path) + "\n\n"
+	s += "  " + kind + ": " + tuistyles.Path.Render(m.entry.Path) + "\n\n"
 
 	if m.state == deleteDone {
-		s += successStyle.Render("  Deleted successfully")
+		s += tuistyles.Success.Render("  Deleted successfully")
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
 	if m.err != nil {
-		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
+		s += tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
@@ -117,10 +118,10 @@ func (m *DeleteDialog) View() tea.View {
 		return tea.NewView(s)
 	}
 
-	s += errorStyle.Render("  This action cannot be undone!") + "\n\n"
+	s += tuistyles.Error.Render("  This action cannot be undone!") + "\n\n"
 	s += "  Type Y to confirm: " + m.input.View()
 	s += "\n\n"
-	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
+	s += tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel")
 	return tea.NewView(s)
 }
 

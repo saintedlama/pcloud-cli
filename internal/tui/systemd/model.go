@@ -17,6 +17,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 // Unit represents a single pcloud-sync systemd user service.
@@ -50,11 +51,6 @@ type unitOpDoneMsg struct {
 }
 
 var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("14")).
-			Padding(0, 1)
-
 	sectionStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("11"))
@@ -62,23 +58,6 @@ var (
 	colHeaderStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("244"))
-
-	selectedRowStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("231")).
-				Background(lipgloss.Color("62"))
-
-	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			Padding(0, 1)
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")).
-			Padding(0, 1)
-
-	successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10")).
-			Padding(0, 1)
 
 	dimStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("244")).
@@ -171,9 +150,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case unitOpDoneMsg:
 		if msg.err != nil {
-			m.statusMsg = errorStyle.Render(msg.err.Error())
+			m.statusMsg = tuistyles.Error.Render(msg.err.Error())
 		} else {
-			m.statusMsg = successStyle.Render(msg.msg)
+			m.statusMsg = tuistyles.Success.Render(msg.msg)
 		}
 		m.loading = true
 		return m, tea.Batch(m.spinner.Tick, loadUnits)
@@ -189,9 +168,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.CloseDialogMsg:
 		if res, ok := msg.Result.(unitOpDoneMsg); ok {
 			if res.err != nil {
-				m.statusMsg = errorStyle.Render(res.err.Error())
+				m.statusMsg = tuistyles.Error.Render(res.err.Error())
 			} else {
-				m.statusMsg = successStyle.Render(res.msg)
+				m.statusMsg = tuistyles.Success.Render(res.msg)
 			}
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
@@ -242,7 +221,7 @@ func (m *Model) selected() *Unit {
 
 // View renders the systemd manager component as a plain string.
 func (m Model) View() string {
-	header := titleStyle.Render("pCloud") + "  " + sectionStyle.Render("Sync Daemons")
+	header := tuistyles.Title.Render("pCloud") + "  " + sectionStyle.Render("Sync Daemons")
 	header += "\n\n"
 
 	if m.loading {
@@ -251,7 +230,7 @@ func (m Model) View() string {
 
 	if len(m.units) == 0 {
 		body := dimStyle.Render("No pcloud-sync services found.\nPress n to add one.")
-		foot := helpStyle.Render("n add  |  r reload  |  tab switch to files  |  q quit")
+		foot := tuistyles.Help.Render("n add  |  r reload  |  tab switch to files  |  q quit")
 		return header + body + "\n\n" + foot
 	}
 
@@ -271,7 +250,7 @@ func (m Model) View() string {
 		sizeStr := fmt.Sprintf("%-10s", formatBytes(u.LocalSize))
 		row := fmt.Sprintf("  %s  %s  %s  %s  %s  %s", name, modeStr, activeStr, enabledStr, intervalStr, sizeStr)
 		if i == m.cursor {
-			sb.WriteString(selectedRowStyle.Render(fmt.Sprintf("  %-28s  %-8s  %-10s  %-10s  %-8s  %-10s", u.ShortName(), u.Mode, u.ActiveState, u.EnabledState, u.Interval, formatBytes(u.LocalSize))))
+			sb.WriteString(tuistyles.Selection.Render(fmt.Sprintf("  %-28s  %-8s  %-10s  %-10s  %-8s  %-10s", u.ShortName(), u.Mode, u.ActiveState, u.EnabledState, u.Interval, formatBytes(u.LocalSize))))
 		} else {
 			sb.WriteString(row)
 		}
@@ -282,7 +261,7 @@ func (m Model) View() string {
 	if m.statusMsg != "" {
 		sb.WriteString(m.statusMsg + "\n\n")
 	}
-	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  n add  |  r reload  |  tab files  |  q quit"))
+	sb.WriteString(tuistyles.Help.Render("↑/↓ navigate  |  enter/a actions  |  n add  |  r reload  |  tab files  |  q quit"))
 	return sb.String()
 }
 

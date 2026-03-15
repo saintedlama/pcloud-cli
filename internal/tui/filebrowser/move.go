@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
 
 type moveState int
@@ -93,26 +94,26 @@ func (m *MoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *MoveDialog) View() tea.View {
-	s := titleStyle.Render("pCloud") + "  "
-	s += dialogTitleStyle.Render("Move File")
+	s := tuistyles.Title.Render("pCloud") + "  "
+	s += tuistyles.DialogTitle.Render("Move File")
 	s += "\n\n"
 	kind := "File"
 	if m.entry.IsFolder {
 		kind = "Folder"
 	}
-	s += "  " + kind + ": " + pathStyle.Render(m.entry.Path) + "\n\n"
+	s += "  " + kind + ": " + tuistyles.Path.Render(m.entry.Path) + "\n\n"
 
 	if m.state == moveDone {
-		s += successStyle.Render("  Moved successfully")
+		s += tuistyles.Success.Render("  Moved successfully")
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
 	if m.err != nil {
-		s += errorStyle.Render(fmt.Sprintf("  Error: %v", m.err))
+		s += tuistyles.Error.Render(fmt.Sprintf("  Error: %v", m.err))
 		s += "\n\n"
-		s += helpStyle.Render("  Press any key to continue")
+		s += tuistyles.Help.Render("  Press any key to continue")
 		return tea.NewView(s)
 	}
 
@@ -123,7 +124,7 @@ func (m *MoveDialog) View() tea.View {
 
 	s += "  Move to: " + m.input.View()
 	s += "\n\n"
-	s += helpStyle.Render("  Enter to confirm  |  Esc to cancel")
+	s += tuistyles.Help.Render("  Enter to confirm  |  Esc to cancel")
 	return tea.NewView(s)
 }
 

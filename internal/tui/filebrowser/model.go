@@ -9,20 +9,29 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
+	"github.com/saintedlama/pcloud-cli/internal/tui/preview"
+	tuistyles "github.com/saintedlama/pcloud-cli/internal/tui/styles"
 )
+
+// historyEntry records the path and cursor position of a visited directory.
+type historyEntry struct {
+	path   string
+	cursor int
+}
 
 // Model is the filebrowser component.
 type Model struct {
-	list      list.Model
-	spinner   spinner.Model
-	api       pcloud.CloudAPI
-	path      string
-	history   []string
-	loading   bool
-	statusMsg string
-	err       error
-	width     int
-	height    int
+	list          list.Model
+	spinner       spinner.Model
+	api           pcloud.CloudAPI
+	path          string
+	history       []historyEntry
+	restoreCursor int
+	loading       bool
+	statusMsg     string
+	err           error
+	width         int
+	height        int
 }
 
 // New creates a new filebrowser starting at root.
@@ -37,11 +46,12 @@ func New(api pcloud.CloudAPI, width, height int) Model {
 	s.Spinner = spinner.MiniDot
 
 	return Model{
-		list:    l,
-		spinner: s,
-		api:     api,
-		width:   width,
-		height:  height,
+		list:          l,
+		spinner:       s,
+		api:           api,
+		width:         width,
+		height:        height,
+		restoreCursor: -1,
 	}
 }
 
@@ -64,7 +74,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.CloseDialogMsg:
 		// Navigate into a folder (from the actions dialog "Open" item).
 		if nav, ok := msg.Result.(msgs.NavigateFolderResult); ok {
-			m.history = append(m.history, m.path)
+			m.history = append(m.history, historyEntry{path: m.path, cursor: m.list.Index()})
+			m.restoreCursor = -1
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, nav.Path))
 		}
@@ -87,6 +98,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			items = append(items, newItem(e))
 		}
 		cmd := m.list.SetItems(items)
+		if m.restoreCursor >= 0 {
+			m.list.Select(m.restoreCursor)
+			m.restoreCursor = -1
+		}
 		return m, cmd
 
 	case msgs.ErrMsg:
@@ -111,27 +126,32 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "enter", "right":
+		case "right":
 			if sel, ok := m.list.SelectedItem().(item); ok {
 				if sel.entry.Name == ".." {
 					return m.navigateUp()
 				}
 				if sel.entry.IsFolder {
-					// 'right' navigates directly; 'enter' opens the actions menu.
-					if msg.String() == "right" {
-						return m.navigateInto(sel.entry.Path)
-					}
-					dialog := NewActionsDialog(m.api, sel.entry, m.width, m.height)
+					return m.navigateInto(sel.entry.Path)
+				}
+				// File: open preview if the filetype is supported.
+				if preview.GetPreviewType(sel.entry.Name) != preview.PreviewUnsupported {
+					dialog := NewPreviewDialog(m.api, sel.entry, m.width, m.height)
 					return m, func() tea.Msg {
 						return msgs.ShowDialogMsg{Content: dialog}
 					}
 				}
-				// File selected with 'enter' -> show action picker.
-				if msg.String() == "enter" {
-					dialog := NewActionsDialog(m.api, sel.entry, m.width, m.height)
-					return m, func() tea.Msg {
-						return msgs.ShowDialogMsg{Content: dialog}
-					}
+			}
+
+		case "enter":
+			if sel, ok := m.list.SelectedItem().(item); ok {
+				if sel.entry.Name == ".." {
+					return m.navigateUp()
+				}
+				// Folder or file: open the actions menu.
+				dialog := NewActionsDialog(m.api, sel.entry, m.width, m.height)
+				return m, func() tea.Msg {
+					return msgs.ShowDialogMsg{Content: dialog}
 				}
 			}
 
@@ -157,7 +177,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the filebrowser.
 func (m Model) View() string {
-	header := titleStyle.Render("pCloud") + "  " + pathStyle.Render(m.path)
+	header := tuistyles.Title.Render("pCloud") + "  " + tuistyles.Path.Render(m.path)
 	if m.list.FilterState() == list.FilterApplied {
 		header += "  " + m.list.FilterInput.View()
 	}
@@ -165,8 +185,8 @@ func (m Model) View() string {
 
 	if m.err != nil {
 		return header +
-			errorStyle.Render(fmt.Sprintf("Error: %v", m.err)) + "\n" +
-			helpStyle.Render("Press backspace to go back, q to quit")
+			tuistyles.Error.Render(fmt.Sprintf("Error: %v", m.err)) + "\n" +
+			tuistyles.Help.Render("Press backspace to go back, q to quit")
 	}
 
 	if m.loading {
@@ -175,16 +195,17 @@ func (m Model) View() string {
 
 	var footer string
 	if m.statusMsg != "" {
-		footer = successStyle.Render(m.statusMsg)
+		footer = tuistyles.Success.Render(m.statusMsg)
 	} else {
-		footer = helpStyle.Render("up/down navigate  |  right/enter open folder  |  enter download file  |  p preview  |  left/backspace go up  |  / filter  |  q quit")
+		footer = tuistyles.Help.Render("up/down navigate  |  right/enter open folder  |  enter download file  |  p preview  |  left/backspace go up  |  / filter  |  q quit")
 	}
 	return header + m.list.View() + "\n" + footer
 }
 
-// navigateInto pushes the current path onto history and loads the given path.
+// navigateInto pushes the current path and cursor onto history and loads the given path.
 func (m Model) navigateInto(path string) (Model, tea.Cmd) {
-	m.history = append(m.history, m.path)
+	m.history = append(m.history, historyEntry{path: m.path, cursor: m.list.Index()})
+	m.restoreCursor = -1
 	m.loading = true
 	return m, tea.Batch(m.spinner.Tick, fetchFolder(m.api, path))
 }
@@ -193,8 +214,10 @@ func (m Model) navigateInto(path string) (Model, tea.Cmd) {
 func (m Model) navigateUp() (Model, tea.Cmd) {
 	var target string
 	if len(m.history) > 0 {
-		target = m.history[len(m.history)-1]
+		entry := m.history[len(m.history)-1]
 		m.history = m.history[:len(m.history)-1]
+		target = entry.path
+		m.restoreCursor = entry.cursor
 	} else {
 		target = parentPath(m.path)
 		if target == m.path {
