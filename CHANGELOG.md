@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0](https://github.com/saintedlama/pcloud-cli/compare/v1.3.0...v1.4.0) (2026-03-15)
+
+
+### Features
+
+* improve pdf and markdown preview ([#5](https://github.com/saintedlama/pcloud-cli/issues/5)) ([23ce150](https://github.com/saintedlama/pcloud-cli/commit/23ce1509e80067a8326b1c99f3bd0ca5782f65b1))
+* simplify install with go, better instructions, stable go major/minor version ([1cebbd8](https://github.com/saintedlama/pcloud-cli/commit/1cebbd8684a98d192d806248ec696626a1b80be1))
+* two way sync with new daemon wizard ([#7](https://github.com/saintedlama/pcloud-cli/issues/7)) ([40b4d52](https://github.com/saintedlama/pcloud-cli/commit/40b4d52542cf0f521814d55dbecf4e65af5aaf02))
+
 ## [1.3.0](https://github.com/saintedlama/pcloud-cli/compare/v1.2.0...v1.3.0) (2026-03-13)
 
 
