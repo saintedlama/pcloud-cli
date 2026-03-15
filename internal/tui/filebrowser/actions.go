@@ -1,19 +1,18 @@
 package filebrowser
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 	"github.com/saintedlama/pcloud-cli/internal/tui/preview"
+	"github.com/saintedlama/pcloud-cli/internal/tui/selector"
 )
 
 type action struct {
 	label    string
 	key      string
 	disabled bool
+	style    selector.ItemStyle
 }
 
 var folderActions = []action{
@@ -21,18 +20,17 @@ var folderActions = []action{
 	{label: "Download", key: "download"},
 	{label: "Rename", key: "rename"},
 	{label: "Move", key: "move"},
-	{label: "Delete", key: "rm"},
+	{label: "Delete", key: "rm", style: selector.StyleDanger},
 	{label: "Sync", key: "sync"},
 }
 
 // ActionsDialog lets the user pick an action to perform on a file or folder.
 type ActionsDialog struct {
-	api     pcloud.CloudAPI
-	entry   msgs.Entry
-	actions []action
-	cursor  int
-	width   int
-	height  int
+	api    pcloud.CloudAPI
+	entry  msgs.Entry
+	list   selector.Selector
+	width  int
+	height int
 }
 
 // NewActionsDialog creates an action picker for the given entry.
@@ -49,7 +47,7 @@ func NewActionsDialog(api pcloud.CloudAPI, entry msgs.Entry, width, height int) 
 			{label: "Download", key: "download"},
 			{label: "Rename", key: "rename"},
 			{label: "Move", key: "move"},
-			{label: "Delete", key: "rm"},
+			{label: "Delete", key: "rm", style: selector.StyleDanger},
 		}
 	}
 	cursor := 0
@@ -59,13 +57,16 @@ func NewActionsDialog(api pcloud.CloudAPI, entry msgs.Entry, width, height int) 
 			break
 		}
 	}
+	items := make([]selector.Item, len(actions))
+	for i, a := range actions {
+		items[i] = selector.Item{Label: a.label, Key: a.key, Disabled: a.disabled, Style: a.style}
+	}
 	return ActionsDialog{
-		api:     api,
-		entry:   entry,
-		actions: actions,
-		cursor:  cursor,
-		width:   width,
-		height:  height,
+		api:    api,
+		entry:  entry,
+		list:   selector.New(items, cursor),
+		width:  width,
+		height: height,
 	}
 }
 
@@ -75,27 +76,14 @@ func (m ActionsDialog) Init() tea.Cmd {
 
 func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if kMsg, ok := msg.(tea.KeyPressMsg); ok {
+		m.list, _ = m.list.Update(msg)
 		switch kMsg.String() {
-		case "up", "k":
-			for prev := m.cursor - 1; prev >= 0; prev-- {
-				if !m.actions[prev].disabled {
-					m.cursor = prev
-					break
-				}
-			}
-		case "down", "j":
-			for next := m.cursor + 1; next < len(m.actions); next++ {
-				if !m.actions[next].disabled {
-					m.cursor = next
-					break
-				}
-			}
 		case "enter":
-			selected := m.actions[m.cursor]
-			if selected.disabled {
+			sel, _ := m.list.Selected()
+			if sel.Disabled {
 				return m, nil
 			}
-			switch selected.key {
+			switch sel.Key {
 			case "preview":
 				dialog := NewPreviewDialog(m.api, m.entry, m.width, m.height)
 				return m, func() tea.Msg {
@@ -143,23 +131,6 @@ func (m ActionsDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-var (
-	actionNormalStyle   = lipgloss.NewStyle().PaddingLeft(2)
-	actionDisabledStyle = lipgloss.NewStyle().
-				PaddingLeft(2).
-				Foreground(lipgloss.Color("240"))
-	actionSelectedStyle = lipgloss.NewStyle().
-				PaddingLeft(2).
-				Bold(true).
-				Foreground(lipgloss.Color("231")).
-				Background(lipgloss.Color("62"))
-	dangerSelectedStyle = lipgloss.NewStyle().
-				PaddingLeft(2).
-				Bold(true).
-				Foreground(lipgloss.Color("231")).
-				Background(lipgloss.Color("9"))
-)
-
 func (m ActionsDialog) View() tea.View {
 	s := titleStyle.Render("pCloud") + "  "
 	s += dialogTitleStyle.Render("Actions")
@@ -169,22 +140,7 @@ func (m ActionsDialog) View() tea.View {
 		kind = "Folder"
 	}
 	s += "  " + kind + ": " + pathStyle.Render(m.entry.Path) + "\n\n"
-
-	for i, a := range m.actions {
-		label := fmt.Sprintf(" %-10s", a.label)
-		switch {
-		case a.disabled:
-			s += actionDisabledStyle.Render(label)
-		case i == m.cursor && a.key == "rm":
-			s += dangerSelectedStyle.Render(label)
-		case i == m.cursor:
-			s += actionSelectedStyle.Render(label)
-		default:
-			s += actionNormalStyle.Render(label)
-		}
-		s += "\n"
-	}
-
+	s += m.list.View()
 	s += "\n"
 	s += helpStyle.Render("  up/down select  |  enter confirm  |  esc cancel")
 	return tea.NewView(s)

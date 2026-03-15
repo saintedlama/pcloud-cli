@@ -28,7 +28,7 @@ type Uploader struct {
 func NewUploader(api *pcloud.API, localRoot, cloudRoot string, log io.Writer) *Uploader {
 	return &Uploader{
 		api:       api,
-		cloudRoot: strings.TrimRight(cloudRoot, "/"),
+		cloudRoot: "/" + strings.Trim(cloudRoot, "/"),
 		localRoot: localRoot,
 		log:       log,
 	}

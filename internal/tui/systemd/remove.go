@@ -84,8 +84,6 @@ func (m *RemoveDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, removeUnit(m.unit)
 			}
 			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
-		case "esc":
-			return m, func() tea.Msg { return msgs.CloseDialogMsg{} }
 		}
 	}
 

@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/saintedlama/pcloud-cli/internal/pcloud"
 	"github.com/saintedlama/pcloud-cli/internal/tui/msgs"
 )
 
@@ -22,7 +24,11 @@ type Unit struct {
 	Name         string // full unit name, e.g. "pcloud-sync-Music.service"
 	ActiveState  string // "active", "inactive", "failed", …
 	EnabledState string // "enabled", "disabled", "static", …
-	Mode         string // sync direction: "down" or "up"
+	Mode         string // sync direction: "down", "up", or "two-way"
+	CloudPath    string // remote pCloud directory
+	LocalPath    string // absolute local directory
+	Interval     string // polling interval, e.g. "1m0s"
+	LocalSize    int64  // local directory size in bytes
 }
 
 // ShortName strips the common prefix and suffix for compact display.
@@ -106,6 +112,8 @@ func modeStyle(mode string) lipgloss.Style {
 	switch mode {
 	case "up":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("213")) // magenta
+	case "two-way":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // green
 	default: // "down"
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("39")) // blue
 	}
@@ -115,6 +123,7 @@ func modeStyle(mode string) lipgloss.Style {
 // It satisfies the same component interface as filebrowser.Model:
 // Init/Update/(View string), not a full tea.Model.
 type Model struct {
+	api       pcloud.CloudAPI
 	units     []Unit
 	cursor    int
 	loading   bool
@@ -125,10 +134,11 @@ type Model struct {
 }
 
 // New constructs a Model that will load units on Init.
-func New(width, height int) Model {
+func New(api pcloud.CloudAPI, width, height int) Model {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
 	return Model{
+		api:     api,
 		spinner: s,
 		loading: true,
 		width:   width,
@@ -186,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
 		}
-		if msg.Result == "removed" {
+		if msg.Result == "removed" || msg.Result == "added" {
 			m.loading = true
 			return m, tea.Batch(m.spinner.Tick, loadUnits)
 		}
@@ -213,6 +223,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					return msgs.ShowDialogMsg{Content: dlg}
 				}
 			}
+		case "n":
+			dlg := NewAddDaemonDialog(m.api)
+			return m, func() tea.Msg {
+				return msgs.ShowDialogMsg{Content: dlg}
+			}
 		}
 	}
 	return m, nil
@@ -235,26 +250,28 @@ func (m Model) View() string {
 	}
 
 	if len(m.units) == 0 {
-		body := dimStyle.Render("No pcloud-sync services found.\nInstall one with: pcloud-cli sync systemd <path>")
-		foot := helpStyle.Render("r reload  |  tab switch to files  |  q quit")
+		body := dimStyle.Render("No pcloud-sync services found.\nPress n to add one.")
+		foot := helpStyle.Render("n add  |  r reload  |  tab switch to files  |  q quit")
 		return header + body + "\n\n" + foot
 	}
 
 	var sb strings.Builder
 	sb.WriteString(header)
-	sb.WriteString(colHeaderStyle.Render(fmt.Sprintf("  %-36s  %-6s  %-10s  %-10s", "Service", "Mode", "Active", "Enabled")))
+	sb.WriteString(colHeaderStyle.Render(fmt.Sprintf("  %-28s  %-8s  %-10s  %-10s  %-8s  %-10s", "Service", "Mode", "Active", "Enabled", "Interval", "Local size")))
 	sb.WriteString("\n")
 	sb.WriteString(strings.Repeat("─", m.width))
 	sb.WriteString("\n")
 
 	for i, u := range m.units {
-		name := fmt.Sprintf("%-36s", u.ShortName())
-		modeStr := modeStyle(u.Mode).Render(fmt.Sprintf("%-6s", u.Mode))
+		name := fmt.Sprintf("%-28s", u.ShortName())
+		modeStr := modeStyle(u.Mode).Render(fmt.Sprintf("%-8s", u.Mode))
 		activeStr := activeStateStyle(u.ActiveState).Render(fmt.Sprintf("%-10s", u.ActiveState))
 		enabledStr := enabledStateStyle(u.EnabledState).Render(fmt.Sprintf("%-10s", u.EnabledState))
-		row := fmt.Sprintf("  %s  %s  %s  %s", name, modeStr, activeStr, enabledStr)
+		intervalStr := fmt.Sprintf("%-8s", u.Interval)
+		sizeStr := fmt.Sprintf("%-10s", formatBytes(u.LocalSize))
+		row := fmt.Sprintf("  %s  %s  %s  %s  %s  %s", name, modeStr, activeStr, enabledStr, intervalStr, sizeStr)
 		if i == m.cursor {
-			sb.WriteString(selectedRowStyle.Render(fmt.Sprintf("  %-36s  %-6s  %-10s  %-10s", u.ShortName(), u.Mode, u.ActiveState, u.EnabledState)))
+			sb.WriteString(selectedRowStyle.Render(fmt.Sprintf("  %-28s  %-8s  %-10s  %-10s  %-8s  %-10s", u.ShortName(), u.Mode, u.ActiveState, u.EnabledState, u.Interval, formatBytes(u.LocalSize))))
 		} else {
 			sb.WriteString(row)
 		}
@@ -265,7 +282,7 @@ func (m Model) View() string {
 	if m.statusMsg != "" {
 		sb.WriteString(m.statusMsg + "\n\n")
 	}
-	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  r reload  |  tab files  |  q quit"))
+	sb.WriteString(helpStyle.Render("↑/↓ navigate  |  enter/a actions  |  n add  |  r reload  |  tab files  |  q quit"))
 	return sb.String()
 }
 
@@ -308,11 +325,16 @@ func loadUnits() tea.Msg {
 		if active == "" {
 			active = "inactive"
 		}
+		info := parseUnitFile(name)
 		units = append(units, Unit{
 			Name:         name,
 			ActiveState:  active,
 			EnabledState: enabled,
-			Mode:         parseUnitMode(name),
+			Mode:         info.mode,
+			CloudPath:    info.cloudPath,
+			LocalPath:    info.localPath,
+			Interval:     info.interval,
+			LocalSize:    localDirSize(info.localPath),
 		})
 	}
 	sort.Slice(units, func(i, j int) bool {
@@ -336,26 +358,104 @@ func runSystemctlOp(op, name string) tea.Msg {
 	return unitOpDoneMsg{msg: fmt.Sprintf("%s %s: OK", op, name)}
 }
 
-// parseUnitMode reads the systemd unit file for name and returns the sync mode
-// by looking for --mode in the ExecStart line. Defaults to "down".
-func parseUnitMode(name string) string {
-	unitPath := fmt.Sprintf("%s/.config/systemd/user/%s", os.Getenv("HOME"), name)
+// unitFileInfo holds the values parsed from an ExecStart line in a unit file.
+type unitFileInfo struct {
+	mode      string
+	cloudPath string
+	localPath string
+	interval  string
+}
+
+// parseUnitFile reads the systemd unit file for name and extracts the sync
+// parameters from the ExecStart line. It handles double-quoted arguments.
+func parseUnitFile(name string) unitFileInfo {
+	info := unitFileInfo{mode: "down"}
+	unitPath := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user", name)
 	data, err := os.ReadFile(unitPath) //nolint:gosec // path built from HOME + known unit name
 	if err != nil {
-		return "down"
+		return info
 	}
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	for sc.Scan() {
-		line := sc.Text()
-		if !strings.HasPrefix(strings.TrimSpace(line), "ExecStart=") {
+		line := strings.TrimSpace(sc.Text())
+		if !strings.HasPrefix(line, "ExecStart=") {
 			continue
 		}
-		fields := strings.Fields(line)
-		for i, f := range fields {
-			if f == "--mode" && i+1 < len(fields) {
-				return fields[i+1]
+		tokens := tokenizeExecStart(strings.TrimPrefix(line, "ExecStart="))
+		// tokens: <exec> sync daemon <cloudPath> <localPath> [--interval N] [--mode M]
+		for i, t := range tokens {
+			if t == "daemon" && i+2 < len(tokens) {
+				info.cloudPath = tokens[i+1]
+				info.localPath = tokens[i+2]
+			}
+			if t == "--mode" && i+1 < len(tokens) {
+				info.mode = tokens[i+1]
+			}
+			if t == "--interval" && i+1 < len(tokens) {
+				info.interval = tokens[i+1]
 			}
 		}
+		break
 	}
-	return "down"
+	return info
+}
+
+// tokenizeExecStart splits an ExecStart value into tokens, respecting
+// double-quoted arguments (as produced by the unit template's q function).
+func tokenizeExecStart(s string) []string {
+	var tokens []string
+	var cur strings.Builder
+	inQuote := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '"' && !inQuote:
+			inQuote = true
+		case c == '"' && inQuote:
+			inQuote = false
+		case c == ' ' && !inQuote:
+			if cur.Len() > 0 {
+				tokens = append(tokens, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	if cur.Len() > 0 {
+		tokens = append(tokens, cur.String())
+	}
+	return tokens
+}
+
+// localDirSize returns the total size in bytes of all files under path.
+func localDirSize(path string) int64 {
+	if path == "" {
+		return 0
+	}
+	var total int64
+	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
+
+// formatBytes formats a byte count as a human-readable string (e.g. "1.2 GB").
+func formatBytes(b int64) string {
+	if b <= 0 {
+		return "—"
+	}
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

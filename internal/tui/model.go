@@ -25,7 +25,7 @@ type model struct {
 func newModel(api *pcloud.API) model {
 	return model{
 		browser:    filebrowser.New(api, 80, 24),
-		sysDaemons: systemd.New(80, 24),
+		sysDaemons: systemd.New(api, 80, 24),
 	}
 }
 
@@ -55,7 +55,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.browser, cmd = m.browser.Update(msg)
 		return m, cmd
-
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "q" {
 			return m, tea.Quit

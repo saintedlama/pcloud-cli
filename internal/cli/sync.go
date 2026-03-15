@@ -41,7 +41,12 @@ directory and the pCloud target name is derived from its last path component:
   sync /data/project --mode up     # uploads to /project on pCloud
 
 With --mode up and two arguments the first is the pCloud path and the second
-is the local directory (same order as --mode down).`,
+is the local directory (same order as --mode down).
+
+With --mode two-way changes are mirrored in both directions. pCloud is pulled
+down first on startup and on every poll interval; local file-system events
+(create, write, remove, rename) are detected with fsnotify and pushed to pCloud
+immediately. Use the daemon sub-command for continuous operation.`,
 	Args: cobra.RangeArgs(1, 2),
 	Run:  runSyncOnce,
 }
@@ -80,7 +85,7 @@ func init() {
 	SyncCmd.PersistentFlags().DurationVar(&syncInterval, "interval", 60*time.Second,
 		"polling interval used by the daemon (e.g. 30s, 5m)")
 	SyncCmd.PersistentFlags().StringVar(&syncMode, "mode", "down",
-		`sync direction: "down" (pCloud → local) or "up" (local → pCloud)`)
+		`sync direction: "down" (pCloud → local), "up" (local → pCloud), or "two-way"`)
 	syncSystemdCmd.Flags().BoolVar(&syncDryRun, "dry-run", false,
 		"print the unit file and describe what would be done without making any changes")
 }
@@ -175,8 +180,35 @@ func runSyncOnce(cmd *cobra.Command, args []string) {
 		}
 		fmt.Println()
 
+	case "two-way":
+		cloudPath, localDir := parseSyncArgs(args)
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Syncing (two-way)  %s  ↔  %s\n\n", cloudPath, absLocal)
+		syncer := gosync.New(API, cloudPath, absLocal, os.Stdout)
+		if _, err := syncer.Run(context.Background()); err != nil {
+			fmt.Fprintln(os.Stderr, "pull failed:", err)
+			os.Exit(1)
+		}
+		uploader := gosync.NewUploader(API, absLocal, cloudPath, os.Stdout)
+		res, err := uploader.Run(context.Background())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "push failed:", err)
+			os.Exit(1)
+		}
+		upToDate := res.Total - res.Downloaded - res.Warnings
+		fmt.Printf("\nDone: %d uploaded, %d deleted, %d up to date",
+			res.Downloaded, res.Deleted, upToDate)
+		if res.Warnings > 0 {
+			fmt.Printf(", %d warning(s)", res.Warnings)
+		}
+		fmt.Println()
+
 	default:
-		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\" or \"up\"\n", syncMode)
+		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\", \"up\", or \"two-way\"\n", syncMode)
 		os.Exit(1)
 	}
 }
@@ -218,8 +250,23 @@ func runSyncDaemon(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(os.Stderr, "daemon error:", err)
 			os.Exit(1)
 		}
+	case "two-way":
+		cloudPath, localDir := parseSyncArgs(args)
+		absLocal, err := filepath.Abs(localDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "could not resolve local dir:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Starting sync daemon (two-way): %s ↔ %s (pull interval: %s)\n",
+			cloudPath, absLocal, syncInterval)
+		twoWay := gosync.NewTwoWay(API, cloudPath, absLocal, os.Stdout)
+		if err := twoWay.Run(ctx, syncInterval); err != nil {
+			fmt.Fprintln(os.Stderr, "daemon error:", err)
+			os.Exit(1)
+		}
+
 	default:
-		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\" or \"up\"\n", syncMode)
+		fmt.Fprintf(os.Stderr, "unknown sync mode %q: must be \"down\", \"up\", or \"two-way\"\n", syncMode)
 		os.Exit(1)
 	}
 }
@@ -259,6 +306,7 @@ func runSyncSystemd(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	} else {
+		// down and two-way both take <pcloud-path> [local-dir]
 		cloudPath, localDir = parseSyncArgs(args)
 	}
 
